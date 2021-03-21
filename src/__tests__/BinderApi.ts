@@ -71,3 +71,12 @@ test('GET request with custom Content-Type', () => {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
 });
+
+test('GET request without trailing slash', () => {
+    const api = new BinderApi();
+    expect(() => {
+        return api.get('/api/asdf');
+    }).toThrow(
+        'Binder does not accept urls that do not have a trailing slash: /api/asdf'
+    );
+});

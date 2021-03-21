@@ -34,8 +34,11 @@ export class BinderApi {
             options = {};
         }
 
+        // Validate requested url
+        this.__testUrl(url);
+
         const headers = Object.assign(
-             {
+            {
                 'Content-Type': 'application/json',
             },
             this.defaultHeaders,
@@ -68,7 +71,7 @@ export class BinderApi {
      * @param method
      * @param data
      */
-    __formatData(method: Method, data?: RequestData):RequestData {
+    __formatData(method: Method, data?: RequestData): RequestData {
         // in a get method, we have never data
         if (method.toLowerCase() === 'get') {
             return undefined;
@@ -101,7 +104,19 @@ export class BinderApi {
         return res.data
     }
 
-    get(url: string, data?: RequestData, options ?: RequestOptions):  Promise<object> {
+    /**
+     * Tests if the url is ok, and throws an error if an error is found
+     * @param url
+     */
+    __testUrl(url: string) {
+        if (!url.endsWith('/')) {
+            throw new Error(
+                `Binder does not accept urls that do not have a trailing slash: ${url}`
+            );
+        }
+    }
+
+    get(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
         return this.__request('get', url, data, options);
     }
 }
