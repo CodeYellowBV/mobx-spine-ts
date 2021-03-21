@@ -14,3 +14,11 @@ Under the hood `yarn build` simply calls `tsx -b`.
 Test can be run by using `yarn test`. 
 
 Under the hood `yarn test` calls `jest`. For additional help, you can run `yarn test --help`.
+
+# BinderApi
+
+## RequestOptions
+The following request options can be set
+
+| ** Option ** | ** Response |
+| skipFormatter | Boolean, when set to true, the get(), post() etc. return the raw AxiosResponse. Otherwise, parses the response, and only return the data returned from the server |

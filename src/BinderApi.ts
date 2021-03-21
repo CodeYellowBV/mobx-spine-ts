@@ -1,14 +1,22 @@
-import axios, {AxiosInstance, AxiosPromise, AxiosRequestConfig, Method} from 'axios';
+import axios, {AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse, Method} from 'axios';
+
+interface RequestOptions {
+    // If true, returns the whole axios response. Otherwise, parse the response data,
+    skipFormatter?: boolean
+}
+
 
 export class BinderApi {
 
     axios: AxiosInstance = axios.create();
 
     constructor() {
-        debugger;
     }
 
-    __request(method: Method, url: string, data?: object, options?: object): AxiosPromise {
+    __request(method: Method, url: string, data?: object, options?: RequestOptions): Promise<object> {
+        if (!options) {
+            options = {};
+        }
 
         const config: AxiosRequestConfig = {
             url: url,
@@ -17,12 +25,20 @@ export class BinderApi {
         };
         const xhr: AxiosPromise = this.axios(config);
 
+        const onSuccess =
+            options.skipFormatter === true
+                ? foo => foo
+                : this.__responseFormatter;
 
-        return xhr;
 
+        return xhr.then(onSuccess);
     }
 
-    get(url: string, data?: object, options ?: object): AxiosPromise {
+    __responseFormatter(res: AxiosResponse): object {
+        return res.data
+    }
+
+    get(url: string, data?: object, options ?: RequestOptions):  Promise<object> {
         return this.__request('get', url, data, options);
     }
 }
