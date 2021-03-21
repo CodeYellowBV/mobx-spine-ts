@@ -17,6 +17,24 @@ Under the hood `yarn test` calls `jest`. For additional help, you can run `yarn 
 
 # BinderApi
 
+## Requests
+
+### Request headers
+
+
+#### Default headers
+Default headers can be set on the BinderApi object by adding them to the `BinderApi.defaultHeaders` dictionary. E.g.
+
+```javascript
+api = new BinderApi();
+api.defaultHeaders['X-Foo'] = 'bar';
+```
+
+### GET request
+You can do get request using: 
+
+```get(url: string, data?: RequestData, options ?: RequestOptions):  Promise<object>```
+
 ## RequestOptions
 The following request options can be set
 

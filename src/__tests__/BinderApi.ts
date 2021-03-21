@@ -42,3 +42,14 @@ test('GET request with params', () => {
 
     return new BinderApi().get('/api/asdf/', { foo: 'bar' });
 });
+
+test('GET request with default headers', () => {
+    mock.onAny().replyOnce(config => {
+        expect(config.headers['X-Foo']).toBe('bar');
+        return [200, {}];
+    });
+
+    const api = new BinderApi();
+    api.defaultHeaders['X-Foo'] = 'bar';
+    return api.get('/api/asdf/');
+});

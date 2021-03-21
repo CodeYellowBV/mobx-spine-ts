@@ -14,6 +14,7 @@ interface RequestData {
 export class BinderApi {
 
     axios: AxiosInstance = axios.create();
+    defaultHeaders: any = {}
 
     constructor() {
     }
@@ -36,7 +37,8 @@ export class BinderApi {
             url: url,
             method: method,
             data: this.__formatData(method, data),
-            params: this.__formatQueryParams(method, data, options)
+            params: this.__formatQueryParams(method, data, options),
+            headers: this.defaultHeaders
         };
         const xhr: AxiosPromise = this.axios(config);
 
