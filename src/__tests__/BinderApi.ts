@@ -174,3 +174,48 @@ test('POST request with failing CSRF', () => {
         expect(api.csrfToken).toBe('beasts');
     });
 });
+
+test('POST request with failing second CSRF', () => {
+    mock.onAny().replyOnce(config => {
+        return [403, {code: 'CSRFFailure'}];
+    });
+    mock.onGet('/api/bootstrap/').replyOnce(config => {
+        return [200, {csrf_token: 'beasts'}];
+    });
+    mock.onAny().replyOnce(config => {
+        return [403, {code: 'CSRFFailure'}];
+    });
+    const api = new BinderApi();
+    api.csrfToken = 'ponys';
+    return api.post('/api/asdf/', {foo: 'bar'}).catch(err => {
+        expect(err.response.status).toBe(403);
+    });
+});
+
+
+test('PUT request', () => {
+    mock.onAny().replyOnce(config => {
+        expect(config.method).toBe('put');
+        return [200, {}];
+    });
+
+    return new BinderApi().put('/api/asdf/');
+});
+
+test('PATCH request', () => {
+    mock.onAny().replyOnce(config => {
+        expect(config.method).toBe('patch');
+        return [200, {}];
+    });
+
+    return new BinderApi().patch('/api/asdf/');
+});
+
+test('DELETE request', () => {
+    mock.onAny().replyOnce(config => {
+        expect(config.method).toBe('delete');
+        return [200, {}];
+    });
+
+    return new BinderApi().delete('/api/asdf/');
+});

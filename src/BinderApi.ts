@@ -49,6 +49,23 @@ export class BinderApi {
         });
     }
 
+    public fetchCsrfToken() {
+        return this.get('/api/bootstrap/').then(res => {
+            this.csrfToken = (res as BootstrapResponse).csrf_token;
+        });
+    }
+
+    /**
+     * Determines the csrf token that needs to be added to the request, based upon the method, and the internally
+     * set csrf token
+     */
+    protected __csrfToken(method: Method): string | undefined {
+        return csrfSafeMethod(method)
+            ? undefined
+            : this.csrfToken;
+    }
+
+
     /**
      * Generic request to the binder api
      *
@@ -149,7 +166,6 @@ export class BinderApi {
         }
     }
 
-
     public get(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
         return this.__request('get', url, data, options);
     }
@@ -158,22 +174,17 @@ export class BinderApi {
         return this.__request('post', url, data, options);
     }
 
-    public fetchCsrfToken() {
-        return this.get('/api/bootstrap/').then(res => {
-            this.csrfToken = (res as BootstrapResponse).csrf_token;
-        });
+    public put(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+        return this.__request('put', url, data, options);
     }
 
-    /**
-     * Determines the csrf token that needs to be added to the request, based upon the method, and the internally
-     * set csrf token
-     */
-    protected __csrfToken(method: Method): string | undefined {
-        return csrfSafeMethod(method)
-            ? undefined
-            : this.csrfToken;
+    public patch(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+        return this.__request('patch', url, data, options);
     }
 
+    public delete(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+        return this.__request('delete', url, data, options);
+    }
 
 }
 
