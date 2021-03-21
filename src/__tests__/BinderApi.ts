@@ -32,3 +32,13 @@ test('GET request', () => {
         expect(res).toEqual({id: 2});
     });
 });
+
+test('GET request with params', () => {
+    mock.onAny().replyOnce(config => {
+        expect(config.params).toEqual({ foo: 'bar' });
+        expect(config.data).toEqual(undefined);
+        return [200, {}];
+    });
+
+    return new BinderApi().get('/api/asdf/', { foo: 'bar' });
+});
