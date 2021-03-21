@@ -1,4 +1,5 @@
 import axios, {AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse, Method} from 'axios';
+import {get} from 'lodash';
 
 interface RequestOptions {
     // If true, returns the whole axios response. Otherwise, parse the response data,
@@ -24,6 +25,28 @@ export class BinderApi {
     csrfToken?: string = null;
 
     constructor() {
+        this.__initializeCsrfHandling();
+    }
+
+    __initializeCsrfHandling() {
+        this.axios.interceptors.response.use(null, err => {
+            const status = get(err, 'response.status');
+            const statusErrCode = get(err, 'response.data.code');
+            const doNotRetry = get(err, 'response.config.doNotRetry');
+            if (
+                status === 403 &&
+                statusErrCode === 'CSRFFailure' &&
+                !doNotRetry
+            ) {
+                return this.fetchCsrfToken().then(() =>
+                    this.axios({
+                        ...err.response.config,
+                        doNotRetry: true,
+                    })
+                );
+            }
+            return Promise.reject(err);
+        });
     }
 
     /**
@@ -135,6 +158,12 @@ export class BinderApi {
         return this.__request('post', url, data, options);
     }
 
+    public fetchCsrfToken() {
+        return this.get('/api/bootstrap/').then(res => {
+            this.csrfToken = (res as BootstrapResponse).csrf_token;
+        });
+    }
+
     /**
      * Determines the csrf token that needs to be added to the request, based upon the method, and the internally
      * set csrf token
@@ -144,6 +173,7 @@ export class BinderApi {
             ? undefined
             : this.csrfToken;
     }
+
 
 }
 

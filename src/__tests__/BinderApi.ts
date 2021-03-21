@@ -27,7 +27,6 @@ test('GET request', () => {
     const api = new BinderApi();
 
 
-
     api.get('/api/asdf/').then(res => {
         expect(res).toEqual({id: 2});
     });
@@ -35,12 +34,12 @@ test('GET request', () => {
 
 test('GET request with params', () => {
     mock.onAny().replyOnce(config => {
-        expect(config.params).toEqual({ foo: 'bar' });
+        expect(config.params).toEqual({foo: 'bar'});
         expect(config.data).toEqual(undefined);
         return [200, {}];
     });
 
-    return new BinderApi().get('/api/asdf/', { foo: 'bar' });
+    return new BinderApi().get('/api/asdf/', {foo: 'bar'});
 });
 
 test('GET request with default headers', () => {
@@ -68,7 +67,7 @@ test('GET request with custom Content-Type', () => {
     // Also add a default header to verify that the header is not overridden
     api.defaultHeaders['X-Foo'] = 'bar';
     return api.get('/api/asdf/', null, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {'Content-Type': 'multipart/form-data'},
     });
 });
 
@@ -88,7 +87,7 @@ test('GET request skipping formatter', () => {
     });
 
     const api = new BinderApi();
-    return api.get('/api/asdf/', null, { skipFormatter: true }).then(res  => {
+    return api.get('/api/asdf/', null, {skipFormatter: true}).then(res => {
         expect((res as AxiosResponse).status).toBe(200);
     });
 });
@@ -98,11 +97,11 @@ test('POST request', () => {
         expect(config.url).toBe('/api/asdf/');
         expect(config.method).toBe('post');
         expect(config.params).toEqual(undefined);
-        return [200, { id: 2 }];
+        return [200, {id: 2}];
     });
 
     return new BinderApi().post('/api/asdf/').then(res => {
-        expect(res).toEqual({ id: 2 });
+        expect(res).toEqual({id: 2});
     });
 });
 
@@ -113,38 +112,38 @@ test('POST request to custom endpoint (#78)', () => {
         expect(config.url).toBe('/asdf/');
         expect(config.method).toBe('post');
         expect(config.params).toEqual(undefined);
-        return [200, { }];
+        return [200, {}];
     });
 
     const api = new BinderApi();
     api.baseUrl = '/api/foo/';
 
     return api.post('/asdf/').then(res => {
-        expect(res).toEqual({ });
+        expect(res).toEqual({});
     });
 });
 
 test('POST request with data', () => {
     mock.onAny().replyOnce(config => {
         expect(config.params).toEqual(undefined);
-        expect(config.data).toEqual(JSON.stringify({ foo: 'bar' }));
+        expect(config.data).toEqual(JSON.stringify({foo: 'bar'}));
         return [200, {}];
     });
 
-    return new BinderApi().post('/api/asdf/', { foo: 'bar' });
+    return new BinderApi().post('/api/asdf/', {foo: 'bar'});
 });
 
 test('POST request with params', () => {
     mock.onAny().replyOnce(config => {
-        expect(config.params).toEqual({ branch: 1 });
-        expect(config.data).toEqual(JSON.stringify({ foo: 'bar' }));
+        expect(config.params).toEqual({branch: 1});
+        expect(config.data).toEqual(JSON.stringify({foo: 'bar'}));
         return [200, {}];
     });
 
     return new BinderApi().post(
         '/api/asdf/',
-        { foo: 'bar' },
-        { params: { branch: 1 } }
+        {foo: 'bar'},
+        {params: {branch: 1}}
     );
 });
 
@@ -155,5 +154,23 @@ test('POST request with CSRF', () => {
     });
     const api = new BinderApi();
     api.csrfToken = 'ponys';
-    return api.post('/api/asdf/', { foo: 'bar' });
+    return api.post('/api/asdf/', {foo: 'bar'});
+});
+
+test('POST request with failing CSRF', () => {
+    mock.onAny().replyOnce(config => {
+        return [403, {code: 'CSRFFailure'}];
+    });
+    mock.onGet('/api/bootstrap/').replyOnce(config => {
+        return [200, {csrf_token: 'beasts'}];
+    });
+    mock.onAny().replyOnce(config => {
+        return [200, {foo: true}];
+    });
+    const api = new BinderApi();
+    api.csrfToken = 'ponys';
+    return api.post('/api/asdf/', {foo: 'bar'}).then(res => {
+        expect(res).toEqual({foo: true});
+        expect(api.csrfToken).toBe('beasts');
+    });
 });
