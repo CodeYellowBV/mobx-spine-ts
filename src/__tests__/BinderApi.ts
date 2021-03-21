@@ -219,3 +219,70 @@ test('DELETE request', () => {
 
     return new BinderApi().delete('/api/asdf/');
 });
+
+
+test('Failing request without onRequestError', () => {
+    const errorHandle = jest.fn();
+
+    mock.onAny().replyOnce(() => {
+        return [500, {}];
+    });
+
+    const api = new BinderApi();
+    // @ts-ignore
+    api.__responseFormatter = jest.fn();
+
+    return api
+        .delete('/api/asdf/')
+        .catch(() => errorHandle())
+        .then(() => {
+            // @ts-ignore
+            expect(api.__responseFormatter).not.toHaveBeenCalled();
+            expect(errorHandle).toHaveBeenCalled();
+        });
+})
+
+test('Failing request with onRequestError', () => {
+    const errorHandle = jest.fn();
+
+    mock.onAny().replyOnce(() => {
+        return [500, {}];
+    });
+
+    const api = new BinderApi();
+    // @ts-ignore
+    api.__responseFormatter = jest.fn();
+    api.onRequestError = jest.fn();
+
+    return api
+        .delete('/api/asdf/')
+        .catch(() => errorHandle())
+        .then(() => {
+            expect(api.onRequestError).toHaveBeenCalled();
+            // @ts-ignore
+            expect(api.__responseFormatter).not.toHaveBeenCalled();
+            expect(errorHandle).toHaveBeenCalled();
+        });
+});
+
+
+test('Failing request with onRequestError and skipRequestError option', () => {
+    const errorHandle = jest.fn();
+
+    mock.onAny().replyOnce(() => {
+        return [500, {}];
+    });
+
+    const api = new BinderApi();
+    // @ts-ignore
+    api.__responseFormatter = jest.fn();
+    api.onRequestError = jest.fn();
+
+    return api
+        .delete('/api/asdf/', null, {skipRequestError: true})
+        .catch(() => errorHandle())
+        .then(() => {
+            expect(api.onRequestError).not.toHaveBeenCalled();
+        });
+});
+

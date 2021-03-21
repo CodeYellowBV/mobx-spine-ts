@@ -35,6 +35,19 @@ api.get('bar/')
 it actually queries `/api/foo/bar/`
 
 
+### Add custom handling of request errors
+Custom error handling can be added by overwriting the `onRequestError` method:
+
+```javascript
+const api = new BinderApi();
+api.onRequestError = reason => handleReason(reason);
+```
+
+Bypassing the custom error handler can in turn be done by setting `skipRequestError` in the request option
+
+
+
+
 ## Requests
 
 ### Request headers
@@ -59,13 +72,34 @@ You can do get request using:
 
 ```get(url: string, data?: RequestData, options ?: RequestOptions):  Promise<object>```
 
+### POST request
+You can do post request using: 
+
+```post(url: string, data?: RequestData, options ?: RequestOptions):  Promise<object>```
+
+
+### PUT request
+You can do put request using: 
+
+```put(url: string, data?: RequestData, options ?: RequestOptions):  Promise<object>```
+
+### PATCH request
+You can do put request using: 
+
+```patch(url: string, data?: RequestData, options ?: RequestOptions):  Promise<object>```
+
+### DELETE request
+You can do delete request using: 
+
+```delete(url: string, data?: RequestData, options ?: RequestOptions):  Promise<object>```
+
+
 ## RequestOptions
 The following request options can be set
 
 | ** Option ** | ** Response |
 | skipFormatter | Boolean, when set to true, the get(), post() etc. return the raw AxiosResponse. Otherwise, parses the response, and only return the data returned from the server |
 | requestParams | Dictionary containing the query params attached to the request. Note that if you do a get request, with data, the data is taken rather than the requestParams |
-| skipRequestError | When set to true, does not use mobx-spine's internal request error handler | 
-
+| skipRequestError | When set to true, does not the set error request error handler. INstead propagate the error |
 ## To test:
 - 'skipFormatter' request option

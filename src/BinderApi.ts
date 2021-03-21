@@ -3,9 +3,10 @@ import {get} from 'lodash';
 
 interface RequestOptions {
     // If true, returns the whole axios response. Otherwise, parse the response data,
-    skipFormatter?: boolean
-    params?: RequestData
-    headers?: any
+    skipRequestError?: Boolean;
+    skipFormatter?: boolean;
+    params?: RequestData;
+    headers?: any;
 }
 
 interface RequestData {
@@ -23,6 +24,7 @@ export class BinderApi {
     defaultHeaders: any = {}
     baseUrl?: string = null;
     csrfToken?: string = null;
+    onRequestError?: (reason: any) => any = null;
 
     constructor() {
         this.__initializeCsrfHandling();
@@ -103,6 +105,11 @@ export class BinderApi {
             headers: headers
         };
         const xhr: AxiosPromise = this.axios(config);
+
+        // We fork the promise tree as we want to have the error traverse to the listeners
+        if (this.onRequestError && options.skipRequestError !== true) {
+            xhr.catch(this.onRequestError);
+        }
 
         const onSuccess =
             options.skipFormatter === true
