@@ -53,3 +53,21 @@ test('GET request with default headers', () => {
     api.defaultHeaders['X-Foo'] = 'bar';
     return api.get('/api/asdf/');
 });
+
+test('GET request with custom Content-Type', () => {
+    mock.onAny().replyOnce(config => {
+        expect(config.headers).toEqual({
+            Accept: 'application/json, text/plain, */*',
+            'Content-Type': 'multipart/form-data',
+            'X-Foo': 'bar',
+        });
+        return [200, {}];
+    });
+
+    const api = new BinderApi();
+    // Also add a default header to verify that the header is not overridden
+    api.defaultHeaders['X-Foo'] = 'bar';
+    return api.get('/api/asdf/', null, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+});

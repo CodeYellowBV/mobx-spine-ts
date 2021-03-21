@@ -20,7 +20,13 @@ Under the hood `yarn test` calls `jest`. For additional help, you can run `yarn 
 ## Requests
 
 ### Request headers
+Headers can be set in the request options under `headers`. E.g. the following sets a custome content-type header:
 
+```javascript
+api.get('/api/asdf/', null, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+```
 
 #### Default headers
 Default headers can be set on the BinderApi object by adding them to the `BinderApi.defaultHeaders` dictionary. E.g.

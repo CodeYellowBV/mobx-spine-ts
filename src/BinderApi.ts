@@ -4,6 +4,7 @@ interface RequestOptions {
     // If true, returns the whole axios response. Otherwise, parse the response data,
     skipFormatter?: boolean
     params?: RequestData
+    headers?: any
 }
 
 interface RequestData {
@@ -33,12 +34,20 @@ export class BinderApi {
             options = {};
         }
 
+        const headers = Object.assign(
+             {
+                'Content-Type': 'application/json',
+            },
+            this.defaultHeaders,
+            options.headers
+        )
+
         const config: AxiosRequestConfig = {
             url: url,
             method: method,
             data: this.__formatData(method, data),
             params: this.__formatQueryParams(method, data, options),
-            headers: this.defaultHeaders
+            headers: headers
         };
         const xhr: AxiosPromise = this.axios(config);
 
