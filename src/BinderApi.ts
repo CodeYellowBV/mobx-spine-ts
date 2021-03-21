@@ -11,11 +11,17 @@ interface RequestData {
 
 }
 
+function csrfSafeMethod(method: Method) {
+    // These HTTP methods do not require CSRF protection.
+    return /^(GET|HEAD|OPTIONS|TRACE)$/i.test(method);
+}
+
 
 export class BinderApi {
-
     axios: AxiosInstance = axios.create();
     defaultHeaders: any = {}
+    baseUrl?: string = null;
+    csrfToken?: string = null;
 
     constructor() {
     }
@@ -28,7 +34,7 @@ export class BinderApi {
      * @param data
      * @param options
      */
-    __request(method: Method, url: string, data?: RequestData, options?: RequestOptions): Promise<object> {
+    protected __request(method: Method, url: string, data?: RequestData, options?: RequestOptions): Promise<object> {
 
         if (!options) {
             options = {};
@@ -37,15 +43,19 @@ export class BinderApi {
         // Validate requested url
         this.__testUrl(url);
 
+        const csrfToken = this.__csrfToken(method);
+
         const headers = Object.assign(
             {
                 'Content-Type': 'application/json',
+                'X-Csrftoken': csrfToken,
             },
             this.defaultHeaders,
             options.headers
-        )
+        );
 
         const config: AxiosRequestConfig = {
+            baseURL: this.baseUrl,
             url: url,
             method: method,
             data: this.__formatData(method, data),
@@ -71,7 +81,7 @@ export class BinderApi {
      * @param method
      * @param data
      */
-    __formatData(method: Method, data?: RequestData): RequestData {
+    protected __formatData(method: Method, data?: RequestData): RequestData {
         // in a get method, we have never data
         if (method.toLowerCase() === 'get') {
             return undefined;
@@ -86,7 +96,7 @@ export class BinderApi {
      * @param data
      * @param options
      */
-    __formatQueryParams(method: Method, data?: RequestData, options?: RequestOptions): RequestData {
+    protected __formatQueryParams(method: Method, data?: RequestData, options?: RequestOptions): RequestData {
         if (method.toLowerCase() === 'get' && data) {
             return data;
         }
@@ -99,7 +109,7 @@ export class BinderApi {
      *
      * @param res
      */
-    __responseFormatter(res: AxiosResponse): object {
+    protected __responseFormatter(res: AxiosResponse): object {
         // Formats the axios response to a data object
         return res.data
     }
@@ -108,7 +118,7 @@ export class BinderApi {
      * Tests if the url is ok, and throws an error if an error is found
      * @param url
      */
-    __testUrl(url: string) {
+    protected __testUrl(url: string) {
         if (!url.endsWith('/')) {
             throw new Error(
                 `Binder does not accept urls that do not have a trailing slash: ${url}`
@@ -116,8 +126,24 @@ export class BinderApi {
         }
     }
 
-    get(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+
+    public get(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
         return this.__request('get', url, data, options);
     }
+
+    public post(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+        return this.__request('post', url, data, options);
+    }
+
+    /**
+     * Determines the csrf token that needs to be added to the request, based upon the method, and the internally
+     * set csrf token
+     */
+    protected __csrfToken(method: Method): string | undefined {
+        return csrfSafeMethod(method)
+            ? undefined
+            : this.csrfToken;
+    }
+
 }
 

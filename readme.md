@@ -17,6 +17,24 @@ Under the hood `yarn test` calls `jest`. For additional help, you can run `yarn 
 
 # BinderApi
 
+## Settings
+
+### Overwriting base url
+The BinderApi has a baseUrl variable, which can be overwritten, and is prepended to all request:
+
+```javascript
+    const api = new BinderApi();
+    api.baseUrl = '/api/foo/';
+```
+
+If you now do
+
+```javascript
+api.get('bar/')
+```
+it actually queries `/api/foo/bar/`
+
+
 ## Requests
 
 ### Request headers
