@@ -26,7 +26,10 @@ test('GET request', () => {
 
     const api = new BinderApi();
 
-    api.get('/api/asdf/').then(res => {
+    const foo = api.__request;
+
+
+    api.__request('get','/api/asdf/').then(res => {
         expect(res).toEqual({id: 2});
     });
 });

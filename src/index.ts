@@ -1,1 +1,2 @@
-import { BinderApi} from "./BinderApi";
+export { BinderApi} from "./BinderApi";
+

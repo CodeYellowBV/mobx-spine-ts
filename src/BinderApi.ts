@@ -2,7 +2,11 @@ import axios, {AxiosInstance, AxiosPromise, AxiosRequestConfig, Method} from 'ax
 
 export class BinderApi {
 
-    axios: AxiosInstance = axios.create()
+    axios: AxiosInstance = axios.create();
+
+    constructor() {
+        debugger;
+    }
 
     __request(method: Method, url: string, data?: object, options?: object): AxiosPromise {
 

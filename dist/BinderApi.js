@@ -5,6 +5,7 @@ const axios_1 = require("axios");
 class BinderApi {
     constructor() {
         this.axios = axios_1.default.create();
+        debugger;
     }
     __request(method, url, data, options) {
         const config = {
