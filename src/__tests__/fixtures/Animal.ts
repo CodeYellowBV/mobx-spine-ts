@@ -1,5 +1,6 @@
 import {observable} from 'mobx';
 import {Model, Store, BinderApi} from '../..';
+import {ModelOptions} from "../../Model";
 //
 // export class Location extends Model {
 //     static backendResourceName = 'location';
@@ -57,11 +58,17 @@ interface AnimalData {
 
 export class Animal extends Model<AnimalData> {
     static backendResourceName = 'animal';
+
     urlRoot = '/api/animal/';
     api = new BinderApi();
 
     @observable id = null;
     @observable name = '';
+    //
+    // constructor(data?: AnimalData, options?: ModelOptions) {
+    //     super(data, options);
+    //
+    // }
 
     relations() {
         return {

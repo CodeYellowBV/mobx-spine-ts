@@ -2,9 +2,9 @@ import {action} from 'mobx';
 import {camelToSnake} from "./Utils";
 import {forIn} from 'lodash'
 
-interface ModelOptions {
-    id: number;
+export interface ModelOptions {
 }
+
 
 export class Model<T> {
 
@@ -14,6 +14,8 @@ export class Model<T> {
         if (data) {
             this.parse(data);
         }
+
+
     }
 
     /**
@@ -24,8 +26,12 @@ export class Model<T> {
     public parse(data: T) {
 
         forIn(data, (value: string, key: object) => {
-            const attr = this.constructor['fromBackendAttrKey'](key)
+            const attr = this.constructor['fromBackendAttrKey'](key);
+
+            debugger;
+            // @ts-ignore
             this[attr] = value;
+
             debugger;
         });
 
