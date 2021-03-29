@@ -1,19 +1,18 @@
 import {action} from 'mobx';
 import {camelToSnake} from "./Utils";
-import {forIn} from 'lodash'
-import construct = Reflect.construct;
+import {forIn, uniqueId} from 'lodash'
 
 export interface ModelOptions {
 }
 
 export class Model<T> {
+    cid: string = uniqueId('m');
 
     public constructor(data?: T, options?: ModelOptions) {
         // Make sure the model is patched, such that the afterConstruct is called
         if (!this.constructor['_isTsPatched']) {
             throw new Error("Model is not patched with @tsPatch")
         }
-
 
     }
 
@@ -36,15 +35,21 @@ export class Model<T> {
      * @param data
      */
     @action
-    public parse(data: T) {
+    public parse(data: T): Model<T> {
 
         forIn(data, (value: string, key: object) => {
             const attr = this.constructor['fromBackendAttrKey'](key);
 
-            // @ts-ignore
-            this[attr] = value;
 
+            if (attr in this) {
+                // @ts-ignore
+                this[attr] = value;
+            } else {
+                console.warn(`Object has no attribute ${attr}. This value is ignored in the bootstrap`)
+            }
         });
+
+        return this;
 
     }
 
