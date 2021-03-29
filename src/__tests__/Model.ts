@@ -17,6 +17,11 @@ test('Initialize model with valid data', () => {
         name: 'Monkey',
     });
 
+    animal.parse({
+        id: 2,
+        name: "Monkey"
+    })
+
     debugger;
 
     expect(animal.id).toBe(2);

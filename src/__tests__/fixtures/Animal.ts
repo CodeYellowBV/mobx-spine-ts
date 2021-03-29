@@ -1,6 +1,6 @@
 import {observable} from 'mobx';
 import {Model, Store, BinderApi} from '../..';
-import {ModelOptions} from "../../Model";
+import {ModelOptions, tsPatch} from "../../Model";
 //
 // export class Location extends Model {
 //     static backendResourceName = 'location';
@@ -52,10 +52,11 @@ import {ModelOptions} from "../../Model";
 //
 
 interface AnimalData {
-    id: number;
-    name: string;
+    id?:number;
+    name?:string;
 }
 
+@tsPatch
 export class Animal extends Model<AnimalData> {
     static backendResourceName = 'animal';
 
@@ -64,11 +65,6 @@ export class Animal extends Model<AnimalData> {
 
     @observable id = null;
     @observable name = '';
-    //
-    // constructor(data?: AnimalData, options?: ModelOptions) {
-    //     super(data, options);
-    //
-    // }
 
     relations() {
         return {
