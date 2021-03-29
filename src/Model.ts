@@ -25,7 +25,7 @@ export class Model<T> {
      * @param options
      * @private
      */
-    private afterConstruct(data?: T, options?: ModelOptions) {
+    private afterConstructor(data?: T, options?: ModelOptions) {
         if (data) {
             this.parse(data);
         }
@@ -77,7 +77,7 @@ export function tsPatch<U, T extends { new(data?: U, options?: ModelOptions, ...
             super(data, options, args);
 
             // @ts-ignore
-            this.afterConstruct(data, options);
+            this.afterConstructor(data, options);
         }
     };
 }

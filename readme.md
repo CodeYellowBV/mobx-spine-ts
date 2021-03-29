@@ -101,5 +101,89 @@ The following request options can be set
 | skipFormatter | Boolean, when set to true, the get(), post() etc. return the raw AxiosResponse. Otherwise, parses the response, and only return the data returned from the server |
 | requestParams | Dictionary containing the query params attached to the request. Note that if you do a get request, with data, the data is taken rather than the requestParams |
 | skipRequestError | When set to true, does not the set error request error handler. INstead propagate the error |
-## To test:
-- 'skipFormatter' request option
+
+# @tsPatch hack for models
+Classes extending the mobx-spine model need to be patched with @tsPatch as well. This is needed for compatability reasons between the old mobx-spine babel compiler, and the new compiler.
+
+The problem is with this pseudoCode
+
+```javascript
+class Model {
+    constructor(data) {
+        // Sets the data of the model
+        this.parse(data);
+    }
+}
+
+class Animal {
+    @observable id = 1;
+}
+
+const animal = new Animal({id: 2})
+    
+console.log(animal.id)
+```
+
+In the babel setup, the Animal class gets compiled to
+```javascript
+class Animal {
+    constructor(data) {
+        this.id = 1;
+        super(data);
+    }
+}
+```
+This will results in the `animal.id` being 2, as is expected. In typescript however, this same code gets compiled to:
+
+```javascript
+class Animal {
+    constructor(data) {
+        super(data);
+        this.id = 1;
+    }
+}
+```
+This will result in the `animal.id` being 1. This is not consistent. As this workflow is an integral part of how `mobx-spine` works, the only option was to patch this behaviour. Therefore a @tsPatch annotation was added, which calls an `afterConstructor` after calling the constructor. This means that previous piece of code now needs to be written as:
+
+
+```javascript
+class Model {
+    constructor(data) {
+
+    }
+    
+    afterConstructor(data) {
+        // Sets the data of the model
+        this.parse(data);
+    }
+}
+
+@tsPatch
+class Animal {
+    @observable id = 1;
+}
+
+const animal = new Animal({id: 2})
+    
+console.log(animal.id)
+```
+
+The animal class now is compiled as:
+
+```javascript
+
+class Animal {
+    constructor(data) {
+        super(data);
+        this.id = 1;
+        
+        // This sets this.id = s
+        this.afterConstrcutor(data);
+    }
+}
+
+```
+
+
+
+
