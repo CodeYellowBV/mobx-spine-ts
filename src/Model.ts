@@ -2,11 +2,22 @@ import {action} from 'mobx';
 import {camelToSnake} from "./Utils";
 import {forIn, uniqueId} from 'lodash'
 
+// Find the relation name before the first dot, and include all other relations after it
+// Example: input `animal.kind.breed` output -> `['animal', 'kind.breed']`
+const RE_SPLIT_FIRST_RELATION = /([^.]+)\.(.+)/;
+
 export interface ModelOptions {
+    relations?: string[],     // List of active relations for this model
 }
 
 export class Model<T> {
     cid: string = uniqueId('m');
+
+    // A list of all attributes of this model
+    __attributes: string[] = [];
+
+    // List of relations that are currently active for this model
+    __activeRelations: string[] = [];
 
     public constructor(data?: T, options?: ModelOptions) {
         // Make sure the model is patched, such that the afterConstruct is called
@@ -25,6 +36,27 @@ export class Model<T> {
      * @private
      */
     private afterConstructor(data?: T, options?: ModelOptions) {
+        options = options || {};
+
+        // Fin all the attributes
+        forIn(this, (value: any, key: string) => {
+
+            // Keys startin with __ are internal
+            if (key.startsWith('__')) {
+                return;
+            }
+
+            this.__attributes.push(key)
+
+
+        });
+
+
+        if (options.relations) {
+            this.__parseRelations(options.relations);
+        }
+
+        // Parse the initial data
         if (data) {
             this.parse(data);
         }
@@ -53,6 +85,44 @@ export class Model<T> {
 
     }
 
+    protected __parseRelations(activeRelations: string[]) {
+        this.__activeRelations = activeRelations;
+
+        const relations = this.relations();
+        const relationModels = {};
+
+        debugger;
+
+        activeRelations.forEach(activeRelation => {
+            // If the activeRelation is null, tis relation is already defined by another activerelations.
+            // e.g. town.restaurants.chef && town
+            if (activeRelation === null) {
+                return;
+            }
+
+            const relationNames = activeRelation.split(RE_SPLIT_FIRST_RELATION);
+
+            const currentRelation = relationNames ? relationNames[0]: activeRelation;
+            const otherRelationNames = relationNames[1] && relationNames[1];
+            const currentProperty = relationModels[currentRelation];
+            const otherRelations = otherRelationNames && [otherRelationNames];
+
+            relationModels[currentRelation] = currentProperty ? currentProperty.concat(otherRelations) : otherRelations
+
+            debugger;
+
+            if (this.__attributes.includes(currentRelation)) {
+                throw Error( `Cannot define \`${currentRelation}\` as both an attribute and a relation. You probably need to remove the attribute.`)
+            }
+
+        });
+
+    }
+
+    protected relations() {
+        return [];
+    }
+
     /**
      * In the backend we use snake case names. In the frontend we use snakeCase names everywhere. THis translates
      * in between them
@@ -62,6 +132,19 @@ export class Model<T> {
     static fromBackendAttrKey(attrKey: string): string {
         return camelToSnake(attrKey);
     }
+
+    set primaryKey(v: any) {
+        throw Error(
+            '`primaryKey` should be a static property on the model.'
+        );
+    }
+
+    set backendResourceName(v: any) {
+        throw Error(
+            '`backendResourceName` should be a static property on the model.'
+        );
+    }
+
 }
 
 

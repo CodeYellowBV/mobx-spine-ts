@@ -1,23 +1,37 @@
 import {observable} from 'mobx';
 import {Model, Store, BinderApi} from '../..';
 import {ModelOptions, tsPatch} from "../../Model";
-//
-// export class Location extends Model {
-//     static backendResourceName = 'location';
-//     @observable id = null;
-//     @observable name = '';
-// }
-//
-// export class Breed extends Model {
-//     @observable id = null;
-//     @observable name = '';
-//
-//     relations() {
-//         return {
-//             location: Location,
-//         };
-//     }
-// }
+
+type LocationData = {
+    id?: number,
+    name?: string
+}
+
+@tsPatch
+export class Location extends Model<LocationData> {
+    static backendResourceName = 'location';
+    @observable id = null;
+    @observable name = '';
+}
+
+
+
+type BreedData = {
+    id?: number,
+    name?: string
+}
+
+@tsPatch
+export class Breed extends Model<BreedData> {
+    @observable id = null;
+    @observable name = '';
+
+    relations() {
+        return {
+            location: Location,
+        };
+    }
+}
 //
 // export class Person extends Model {
 //     static backendResourceName = 'person';
@@ -37,23 +51,30 @@ import {ModelOptions, tsPatch} from "../../Model";
 //     Model = Person;
 // }
 //
-// export class Kind extends Model {
-//     static backendResourceName = 'kind';
-//     @observable id = null;
-//     @observable name = '';
-//
-//     relations() {
-//         return {
-//             breed: Breed,
-//             location: Location,
-//         };
-//     }
-// }
-//
+
+type KindData = {
+    name?: string,
+    breed?: Breed,
+    location?: Location
+}
+
+export class Kind extends Model<KindData> {
+    static backendResourceName = 'kind';
+    @observable id = null;
+    @observable name = '';
+
+    relations() {
+        return {
+            breed: Breed,
+            location: Location,
+        };
+    }
+}
+
 
 interface AnimalData {
-    id?:number;
-    name?:string;
+    id?: number;
+    name?: string;
 }
 
 @tsPatch
@@ -133,12 +154,17 @@ export class Animal extends Model<AnimalData> {
 //     }
 // }
 //
-// export class KindResourceName extends Model {
-//     api = new BinderApi();
-//     static backendResourceName = 'kind';
-//     @observable id = null;
-// }
-//
+
+type KindResourceData = {
+    id?: number
+}
+
+export class KindResourceName extends Model<KindResourceData> {
+    api = new BinderApi();
+    static backendResourceName = 'kind';
+    @observable id = null;
+}
+
 // export class PersonStoreResourceName extends Store {
 //     Model = KindResourceName;
 //     static backendResourceName = 'person';

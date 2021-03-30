@@ -187,3 +187,4 @@ class Animal {
 # Differences between mobx-spine and mobx-spine-ts
 - Models need to be annotated @tsPatch
 - Model will generated a warning when you are trying to give it a key that doesn't exist, e.g.`new Animal({thisDoesNotExist: 1})`
+- Base model has a relations method, returning no relations which can be overridden.  

@@ -1,7 +1,9 @@
-import {Animal} from "./fixtures/Animal";
+import {Animal, Kind} from "./fixtures/Animal";
 import _ from 'lodash';
+import {Model, tsPatch} from "../Model";
+import {observable} from "mobx";
 
-const spyWarn = jest.spyOn( console, 'warn' );
+const spyWarn = jest.spyOn(console, 'warn');
 
 
 beforeEach(() => {
@@ -54,4 +56,42 @@ test('`cid` should be a unique value`', () => {
     expect(a2.cid).toMatch(/m\d+/);
 
     expect(a1.cid).not.toMatch(a2.cid);
+});
+
+test('primaryKey defined as not static should throw error', () => {
+    @tsPatch
+    class Zebra extends Model<object> {
+        // @ts-ignore
+        primaryKey = 'blaat';
+    }
+
+    expect(() => {
+        return new Zebra();
+    }).toThrow('`primaryKey` should be a static property on the model.');
+});
+
+test('Unpatched model should throw error', () => {
+    class Zebra extends Model<object> {
+        // @ts-ignore
+        primaryKey = 'blaat';
+    }
+
+    expect(() => {
+        return new Zebra();
+    }).toThrow('Model is not patched with @tsPatch');
+})
+
+test('property defined as both attribute and relation should throw error', () => {
+    @tsPatch
+    class Zebra extends Model<object> {
+        @observable kind = '';
+        relation() {
+            return { kind: Kind };
+        }
+    }
+    expect(() => {
+        return new Zebra(null, { relations: ['kind'] });
+    }).toThrow(
+        'Cannot define `kind` as both an attribute and a relation. You probably need to remove the attribute.'
+    );
 });
