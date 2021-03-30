@@ -85,13 +85,53 @@ test('property defined as both attribute and relation should throw error', () =>
     @tsPatch
     class Zebra extends Model<object> {
         @observable kind = '';
+
         relation() {
-            return { kind: Kind };
+            return {kind: Kind};
         }
     }
+
     expect(() => {
-        return new Zebra(null, { relations: ['kind'] });
+        return new Zebra(null, {relations: ['kind']});
     }).toThrow(
         'Cannot define `kind` as both an attribute and a relation. You probably need to remove the attribute.'
     );
+});
+
+test('initialize() method should be called', () => {
+    const initMock = jest.fn();
+
+    @tsPatch
+    class Zebra extends Model<object> {
+        initialize() {
+            initMock();
+        }
+    }
+
+    new Zebra();
+    expect(initMock.mock.calls.length).toBe(1);
+});
+
+test('URL should be correct without primary key', () => {
+    const animal = new Animal();
+    expect(animal.url).toBe('/api/animal/');
+});
+
+test('URL should be correct with primary key', () => {
+    const animal = new Animal({ id: 2 });
+    expect(animal.url).toBe('/api/animal/2/');
+});
+
+test('Relation should not be initialized by default', () => {
+    const animal = new Animal();
+    // @ts-ignore
+    expect(animal.kind).toBeUndefined();
+});
+
+test('Initialize one-level relation', () => {
+    const animal = new Animal(null, {
+        relations: ['kind'],
+    });
+    // @ts-ignore
+    expect(animal.kind).toBeInstanceOf(Kind);
 });

@@ -1,6 +1,7 @@
-import {action} from 'mobx';
+import {action, computed, extendObservable} from 'mobx';
 import {camelToSnake} from "./Utils";
-import {forIn, uniqueId} from 'lodash'
+import {forIn, uniqueId, result, mapValues} from 'lodash'
+import {Store} from "./Store";
 
 // Find the relation name before the first dot, and include all other relations after it
 // Example: input `animal.kind.breed` output -> `['animal', 'kind.breed']`
@@ -11,6 +12,8 @@ export interface ModelOptions {
 }
 
 export class Model<T> {
+    static primaryKey: string = 'id';
+
     cid: string = uniqueId('m');
 
     // A list of all attributes of this model
@@ -18,6 +21,8 @@ export class Model<T> {
 
     // List of relations that are currently active for this model
     __activeRelations: string[] = [];
+
+    __activeCurrentRelations: string[] = [];
 
     public constructor(data?: T, options?: ModelOptions) {
         // Make sure the model is patched, such that the afterConstruct is called
@@ -60,6 +65,8 @@ export class Model<T> {
         if (data) {
             this.parse(data);
         }
+
+        this.initialize();
     }
 
     /**
@@ -93,34 +100,66 @@ export class Model<T> {
 
         debugger;
 
-        activeRelations.forEach(activeRelation => {
+        activeRelations.forEach((activeRelation: string) => {
             // If the activeRelation is null, tis relation is already defined by another activerelations.
             // e.g. town.restaurants.chef && town
             if (activeRelation === null) {
                 return;
             }
 
-            const relationNames = activeRelation.split(RE_SPLIT_FIRST_RELATION);
+            const relationNames: string[] = activeRelation.split(RE_SPLIT_FIRST_RELATION);
 
-            const currentRelation = relationNames ? relationNames[0]: activeRelation;
+            const currentRelation = relationNames ? relationNames[0] : activeRelation;
             const otherRelationNames = relationNames[1] && relationNames[1];
             const currentProperty = relationModels[currentRelation];
             const otherRelations = otherRelationNames && [otherRelationNames];
 
             relationModels[currentRelation] = currentProperty ? currentProperty.concat(otherRelations) : otherRelations
 
-            debugger;
-
             if (this.__attributes.includes(currentRelation)) {
-                throw Error( `Cannot define \`${currentRelation}\` as both an attribute and a relation. You probably need to remove the attribute.`)
+                throw Error(`Cannot define \`${currentRelation}\` as both an attribute and a relation. You probably need to remove the attribute.`)
+            }
+
+            if (!this.__activeCurrentRelations.includes(currentRelation)) {
+                this.__activeCurrentRelations.push(currentRelation);
             }
 
         });
 
+        extendObservable(this,
+            mapValues(relationModels, (otherRelationNames: string[], relationName: string) => {
+                    const RelationModel = relations[relationName];
+                    if (!RelationModel) {
+                        throw Error(`Specified relation "${relationName}" does not exist on model.`);
+                    }
+                    const options: ModelOptions = {relations: otherRelationNames};
+                    if (RelationModel.prototype instanceof Store) {
+                        // @ts-ignore
+                        return new RelationModel(options);
+                    }
+                    // @ts-ignore
+                    return new RelationModel(null, options);
+
+                }
+            )
+        );
+
     }
 
-    protected relations() {
-        return [];
+
+    @computed
+    get url(): string {
+        const id = this[this.constructor['primaryKey']];
+        return `${result(this, 'urlRoot')}${id ? `${id}/` : ''}`;
+    }
+
+
+    protected relations(): { [name: string]: Function } {
+        return {};
+    }
+
+    // Empty function, but can be overridden if you want to do something after initializing the model.
+    protected initialize() {
     }
 
     /**
