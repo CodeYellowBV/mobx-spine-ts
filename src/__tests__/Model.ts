@@ -1,4 +1,4 @@
-import {Animal, Kind} from "./fixtures/Animal";
+import {Animal, Breed, Kind} from "./fixtures/Animal";
 import _ from 'lodash';
 import {Model, tsPatch} from "../Model";
 import {observable} from "mobx";
@@ -134,4 +134,25 @@ test('Initialize one-level relation', () => {
     });
     // @ts-ignore
     expect(animal.kind).toBeInstanceOf(Kind);
+});
+
+
+test('isNew should be true for new model', () => {
+    const animal = new Animal();
+    expect(animal.isNew).toBe(true);
+});
+
+
+test('isNew should be false for existing model', () => {
+    const animal = new Animal({ id: 2 });
+    expect(animal.isNew).toBe(false);
+});
+test('Initialize two-level relation', () => {
+    const animal = new Animal(null, {
+        relations: ['kind.breed'],
+    });
+    // @ts-ignore
+    expect(animal.kind).toBeInstanceOf(Kind);
+    // @ts-ignore
+    expect(animal.kind.breed).toBeInstanceOf(Breed);
 });

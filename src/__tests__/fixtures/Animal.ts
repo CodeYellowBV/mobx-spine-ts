@@ -58,6 +58,7 @@ type KindData = {
     location?: Location
 }
 
+@tsPatch
 export class Kind extends Model<KindData> {
     static backendResourceName = 'kind';
     @observable id = null;
@@ -89,7 +90,7 @@ export class Animal extends Model<AnimalData> {
 
     relations() {
         return {
-            // kind: Kind,
+            kind: Kind,
             // owner: Person,
             // pastOwners: PersonStore,
         };

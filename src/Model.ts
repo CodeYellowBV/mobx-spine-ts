@@ -98,7 +98,6 @@ export class Model<T> {
         const relations = this.relations();
         const relationModels = {};
 
-        debugger;
 
         activeRelations.forEach((activeRelation: string) => {
             // If the activeRelation is null, tis relation is already defined by another activerelations.
@@ -107,14 +106,16 @@ export class Model<T> {
                 return;
             }
 
-            const relationNames: string[] = activeRelation.split(RE_SPLIT_FIRST_RELATION);
+            const relationNames: string[] = activeRelation.split(".");
 
             const currentRelation = relationNames ? relationNames[0] : activeRelation;
+
             const otherRelationNames = relationNames[1] && relationNames[1];
             const currentProperty = relationModels[currentRelation];
             const otherRelations = otherRelationNames && [otherRelationNames];
 
             relationModels[currentRelation] = currentProperty ? currentProperty.concat(otherRelations) : otherRelations
+            // debugger;
 
             if (this.__attributes.includes(currentRelation)) {
                 throw Error(`Cannot define \`${currentRelation}\` as both an attribute and a relation. You probably need to remove the attribute.`)
@@ -125,6 +126,7 @@ export class Model<T> {
             }
 
         });
+
 
         extendObservable(this,
             mapValues(relationModels, (otherRelationNames: string[], relationName: string) => {
@@ -146,6 +148,10 @@ export class Model<T> {
 
     }
 
+    @computed
+    get isNew(): boolean {
+        return !this[this.constructor['primaryKey']];
+    }
 
     @computed
     get url(): string {
