@@ -1,17 +1,23 @@
 import {action, computed, extendObservable, isObservableProp} from 'mobx';
 import {camelToSnake} from "./Utils";
-import {forIn, uniqueId, result, mapValues, isPlainObject, get} from 'lodash'
+import {forIn, uniqueId, result, mapValues, isPlainObject, get, each} from 'lodash'
 import {Store} from "./Store";
+import {modelResponseAdapter, ResponseAdapter} from "./Model/BinderModelResponse";
 
 // Find the relation name before the first dot, and include all other relations after it
 // Example: input `animal.kind.breed` output -> `['animal', 'kind.breed']`
 const RE_SPLIT_FIRST_RELATION = /([^.]+)\.(.+)/;
 
+export interface ModelData {
+
+}
+
 export interface ModelOptions {
     relations?: string[],     // List of active relations for this model
 }
 
-export class Model<T> {
+
+export class Model<T extends ModelData> {
     static primaryKey: string = 'id';
 
     cid: string = uniqueId('m');
@@ -79,6 +85,11 @@ export class Model<T> {
      */
     @action
     public parse(data: T): Model<T> {
+        if (!isPlainObject(data)) {
+            throw Error(`Parameter supplied to \`parse()\` is not an object, got: ${JSON.stringify(
+                data
+            )}`);
+        }
 
         forIn(data, (value: object, key: string) => {
             const attr = this.constructor['fromBackendAttrKey'](key);
@@ -88,7 +99,7 @@ export class Model<T> {
             if (this.__attributes.includes(key)) {
                 // @ts-ignore
                 this[attr] = value;
-            } else if(this.__activeCurrentRelations.includes(attr)) {
+            } else if (this.__activeCurrentRelations.includes(attr)) {
                 // Parse the relations
                 if (isPlainObject(value) || isPlainObject(get(value, '[0]'))) {
                     this[attr].parse(value);
@@ -106,6 +117,12 @@ export class Model<T> {
 
     }
 
+    /**
+     * Initiates all the relations. based upon the relations that are active (in the withs).
+     *
+     * @param activeRelations
+     * @protected
+     */
     protected __parseRelations(activeRelations: string[]) {
         this.__activeRelations = activeRelations;
 
@@ -155,11 +172,45 @@ export class Model<T> {
                     }
                     // @ts-ignore
                     return new RelationModel(null, options);
-
                 }
             )
         );
 
+    }
+
+    @action
+    fromBackend(input: ResponseAdapter<T>) {
+        const {data, with, withMapping, meta} = modelResponseAdapter(input);
+
+        each(this.__activeRelations, (relationName: string) => {
+            const relation = this[relationName];
+            const resScoped = this.__scopeBackendResponse({
+                data, with, withMapping, meta
+            });
+
+
+        });
+    }
+
+
+    /**
+     * We handle the fromBackend recursively.
+     * But when recursing, we don't send the full repository, we need to only send the repo
+     * relevant to the relation.
+     *
+     * So when we have a customer with a town.restaurants relation,
+     * we get a "town.restaurants": "restaurant", relMapping from Binder
+     *
+     * Here we create a scoped repository.
+     * The root gets a `town.restaurants` repo, but the `town` relation only gets the `restaurants` repo
+     */
+    private __scopeBackendResponse(input: ResponseAdapter<T>) {
+        const {data, with, withMapping} = modelResponseAdapter(input);
+
+        let scopedData = null;
+        let relevant = false;
+        const scopedRepos = {};
+        const scopedRelMapping = []
     }
 
     @computed

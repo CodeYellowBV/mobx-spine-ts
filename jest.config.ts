@@ -8,6 +8,6 @@ const config: Config.InitialOptions = {
     rootDir: "src/",
     testPathIgnorePatterns: [
         "/src/__tests__/fixtures/"
-    ]
+    ],
 };
 export default config;

@@ -1,6 +1,8 @@
 import {Animal, AnimalCircular, Breed, Kind, Location, Person} from "./fixtures/Animal";
 import {Model, tsPatch} from "../Model";
 import {observable} from "mobx";
+// @ts-ignore
+import animalKindBreedData from "./fixtures/animal-with-kind-breed.json";
 
 const spyWarn = jest.spyOn(console, 'warn');
 
@@ -189,7 +191,7 @@ test('Initialize circular model', () => {
                 id: 3,
             },
         },
-        { relations: ['circular'] }
+        {relations: ['circular']}
     );
 
 
@@ -216,3 +218,43 @@ test('Attributes list', () => {
     const animal = new Animal();
     expect(animal.__attributes).toEqual(['id', 'name']);
 });
+
+test('Non-object given to parse() should throw an error', () => {
+    expect(() => {
+        const animal = new Animal();
+        // @ts-ignore
+        return animal.parse(1);
+    }).toThrow('Parameter supplied to `parse()` is not an object, got: 1');
+});
+
+
+test('Non existent relation should throw an error', () => {
+    expect(() => {
+        return new Animal(null, {
+            relations: ['ponyfoo'],
+        });
+    }).toThrow('Specified relation "ponyfoo" does not exist on model.');
+});
+
+test('Parsing two-level relation (with repos)', () => {
+    const animal = new Animal(null, {
+        relations: ['kind.breed'],
+    });
+    animal.fromBackend({
+        data: animalKindBreedData.data,
+        repos: animalKindBreedData.with,
+        relMapping: animalKindBreedData.with_mapping,
+    });
+    expect(animal.id).toBe(1);
+    expect(animal.name).toBe('Woofer');
+    // @ts-ignore
+    expect(animal.kind.id).toBe(4);
+    // @ts-ignore
+    expect(animal.kind.name).toBe('Good Dog');
+    // @ts-ignore
+    expect(animal.kind.breed.id).toBe(3);
+    // @ts-ignore
+    expect(animal.kind.breed.name).toBe('Good Pupper');
+});
+
+

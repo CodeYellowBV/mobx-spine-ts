@@ -5,12 +5,14 @@
     "declaration": true,
     "outDir": "./dist",
     "baseUrl": "src/",
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true
   },
   "include": [
     "src/**/*"
   ],
   "exclude": [
-//    "src/__tests__/**"
+    //    "src/__tests__/**"
   ]
 }
