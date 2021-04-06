@@ -201,3 +201,18 @@ test('Initialize circular model', () => {
     // @ts-ignore
     expect(animal.circular.id).toBe(3);
 });
+
+test('Initialize multiple nested relations', () => {
+    const animal = new Animal(null, {
+        relations: ['kind.breed', 'kind.location'],
+    });
+    // @ts-ignore
+    expect(animal.kind.breed).toBeInstanceOf(Breed);
+    // @ts-ignore
+    expect(animal.kind.location).toBeInstanceOf(Location);
+});
+
+test('Attributes list', () => {
+    const animal = new Animal();
+    expect(animal.__attributes).toEqual(['id', 'name']);
+});

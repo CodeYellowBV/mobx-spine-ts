@@ -1,4 +1,4 @@
-import {action, computed, extendObservable} from 'mobx';
+import {action, computed, extendObservable, isObservableProp} from 'mobx';
 import {camelToSnake} from "./Utils";
 import {forIn, uniqueId, result, mapValues, isPlainObject, get} from 'lodash'
 import {Store} from "./Store";
@@ -51,6 +51,10 @@ export class Model<T> {
                 return;
             }
 
+            if (!isObservableProp(this, key)) {
+                return;
+            }
+
             this.__attributes.push(key)
 
 
@@ -78,7 +82,7 @@ export class Model<T> {
 
         forIn(data, (value: object, key: string) => {
             const attr = this.constructor['fromBackendAttrKey'](key);
-            
+
 
             // parse normal attributes
             if (this.__attributes.includes(key)) {
