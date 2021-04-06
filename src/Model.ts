@@ -1,6 +1,6 @@
 import {action, computed, extendObservable} from 'mobx';
 import {camelToSnake} from "./Utils";
-import {forIn, uniqueId, result, mapValues} from 'lodash'
+import {forIn, uniqueId, result, mapValues, isPlainObject, get} from 'lodash'
 import {Store} from "./Store";
 
 // Find the relation name before the first dot, and include all other relations after it
@@ -76,13 +76,23 @@ export class Model<T> {
     @action
     public parse(data: T): Model<T> {
 
-        forIn(data, (value: string, key: object) => {
+        forIn(data, (value: object, key: string) => {
             const attr = this.constructor['fromBackendAttrKey'](key);
+            
 
-
-            if (attr in this) {
+            // parse normal attributes
+            if (this.__attributes.includes(key)) {
                 // @ts-ignore
                 this[attr] = value;
+            } else if(this.__activeCurrentRelations.includes(attr)) {
+                // Parse the relations
+                if (isPlainObject(value) || isPlainObject(get(value, '[0]'))) {
+                    this[attr].parse(value);
+                } else if (value === null) {
+                    // The relation is cleared.
+                    this[attr].clear();
+                }
+
             } else {
                 console.warn(`Object has no attribute ${attr}. This value is ignored in the bootstrap`)
             }
@@ -110,7 +120,7 @@ export class Model<T> {
 
             const currentRelation = relationNames ? relationNames[0] : activeRelation;
 
-            const otherRelationNames = relationNames[1] && relationNames[1];
+            const otherRelationNames = relationNames[1] && relationNames.slice(1).join(".");
             const currentProperty = relationModels[currentRelation];
             const otherRelations = otherRelationNames && [otherRelationNames];
 

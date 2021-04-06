@@ -1,5 +1,4 @@
-import {Animal, Breed, Kind} from "./fixtures/Animal";
-import _ from 'lodash';
+import {Animal, AnimalCircular, Breed, Kind, Location, Person} from "./fixtures/Animal";
 import {Model, tsPatch} from "../Model";
 import {observable} from "mobx";
 
@@ -118,7 +117,7 @@ test('URL should be correct without primary key', () => {
 });
 
 test('URL should be correct with primary key', () => {
-    const animal = new Animal({ id: 2 });
+    const animal = new Animal({id: 2});
     expect(animal.url).toBe('/api/animal/2/');
 });
 
@@ -144,7 +143,7 @@ test('isNew should be true for new model', () => {
 
 
 test('isNew should be false for existing model', () => {
-    const animal = new Animal({ id: 2 });
+    const animal = new Animal({id: 2});
     expect(animal.isNew).toBe(false);
 });
 test('Initialize two-level relation', () => {
@@ -155,4 +154,50 @@ test('Initialize two-level relation', () => {
     expect(animal.kind).toBeInstanceOf(Kind);
     // @ts-ignore
     expect(animal.kind.breed).toBeInstanceOf(Breed);
+});
+
+
+test('Initialize three-level relation', () => {
+    const animal = new Animal(null, {
+        relations: ['kind.breed.location'],
+    });
+    // @ts-ignore
+    expect(animal.kind).toBeInstanceOf(Kind);
+    // @ts-ignore
+    expect(animal.kind.breed).toBeInstanceOf(Breed);
+    // @ts-ignore
+
+    expect(animal.kind.breed.location).toBeInstanceOf(Location);
+});
+
+
+test('Initialize multiple relations', () => {
+    const animal = new Animal(null, {
+        relations: ['kind', 'owner'],
+    });
+
+    // @ts-ignore
+    expect(animal.kind).toBeInstanceOf(Kind);
+    // @ts-ignore
+    expect(animal.owner).toBeInstanceOf(Person);
+});
+test('Initialize circular model', () => {
+    const animal = new AnimalCircular(
+        {
+            id: 2,
+            circular: {
+                id: 3,
+            },
+        },
+        { relations: ['circular'] }
+    );
+
+
+    expect(animal.id).toBe(2);
+    // @ts-ignore
+    expect(animal.circular).toBeInstanceOf(AnimalCircular);
+    // @ts-ignore
+    expect(animal.circular.circular).toBeUndefined();
+    // @ts-ignore
+    expect(animal.circular.id).toBe(3);
 });

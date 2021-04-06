@@ -32,21 +32,27 @@ export class Breed extends Model<BreedData> {
         };
     }
 }
-//
-// export class Person extends Model {
-//     static backendResourceName = 'person';
-//     api = new BinderApi();
-//     @observable id = null;
-//     @observable name = '';
-//
-//     relations() {
-//         return {
-//             town: Location,
-//             pets: AnimalStore,
-//         };
-//     }
-// }
-//
+
+interface PersonData {
+    id?: number,
+    name?: string
+}
+
+@tsPatch
+export class Person extends Model<PersonData> {
+    static backendResourceName = 'person';
+    api = new BinderApi();
+    @observable id = null;
+    @observable name = '';
+
+    relations() {
+        return {
+            town: Location,
+            // pets: AnimalStore,
+        };
+    }
+}
+
 // export class PersonStore extends Store {
 //     Model = Person;
 // }
@@ -91,7 +97,7 @@ export class Animal extends Model<AnimalData> {
     relations() {
         return {
             kind: Kind,
-            // owner: Person,
+            owner: Person,
             // pastOwners: PersonStore,
         };
     }
@@ -145,16 +151,22 @@ export class Animal extends Model<AnimalData> {
 //     Model = Animal;
 // }
 //
-// export class AnimalCircular extends Model {
-//     @observable id = null;
-//
-//     relations() {
-//         return {
-//             circular: AnimalCircular,
-//         };
-//     }
-// }
-//
+interface AnimalCircularData {
+    id ?: number,
+    circular ?: AnimalCircularData
+}
+
+@tsPatch
+export class AnimalCircular extends Model<AnimalCircularData> {
+    @observable id = null;
+
+    relations() {
+        return {
+            circular: AnimalCircular,
+        };
+    }
+}
+
 
 type KindResourceData = {
     id?: number
