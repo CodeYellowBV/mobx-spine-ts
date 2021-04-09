@@ -2,7 +2,7 @@ import {action, computed, extendObservable, isObservableProp} from 'mobx';
 import {camelToSnake} from "./Utils";
 import {forIn, uniqueId, result, mapValues, isPlainObject, get, each} from 'lodash'
 import {Store} from "./Store";
-import {modelResponseAdapter, ResponseAdapter} from "./Model/BinderModelResponse";
+import {modelResponseAdapter, Response, ResponseAdapter} from "./Model/BinderResponse";
 
 // Find the relation name before the first dot, and include all other relations after it
 // Example: input `animal.kind.breed` output -> `['animal', 'kind.breed']`
@@ -175,43 +175,38 @@ export class Model<T extends ModelData> {
                 }
             )
         );
-
     }
 
     @action
     fromBackend(input: ResponseAdapter<T>) {
-        const {data, with, withMapping, meta} = modelResponseAdapter(input);
+        const response = modelResponseAdapter(input);
+        const {data} = response;
 
-        each(this.__activeRelations, (relationName: string) => {
-            const relation = this[relationName];
-            const resScoped = this.__scopeBackendResponse({
-                data, with, withMapping, meta
-            });
+        this.__parseFromBackendRelations(response);
 
 
-        });
+        if (data) {
+            this.parse(data);
+        }
     }
 
 
     /**
-     * We handle the fromBackend recursively.
-     * But when recursing, we don't send the full repository, we need to only send the repo
-     * relevant to the relation.
-     *
-     * So when we have a customer with a town.restaurants relation,
-     * we get a "town.restaurants": "restaurant", relMapping from Binder
-     *
-     * Here we create a scoped repository.
-     * The root gets a `town.restaurants` repo, but the `town` relation only gets the `restaurants` repo
+     * When we get the backend data, we also get the data from the relations. This method parses the backend
+     * relations for this model
+     * @param response
      */
-    private __scopeBackendResponse(input: ResponseAdapter<T>) {
-        const {data, with, withMapping} = modelResponseAdapter(input);
+    __parseFromBackendRelations(response: Response<T>): void {
 
-        let scopedData = null;
-        let relevant = false;
-        const scopedRepos = {};
-        const scopedRelMapping = []
+        const relationTree = [];
+
+        this.__activeRelations.forEach((relationName) => {
+            debugger;
+        })
+
+
     }
+
 
     @computed
     get isNew(): boolean {

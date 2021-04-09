@@ -1,10 +1,13 @@
 import {ModelData} from "../Model";
 
+/**
+ * Interface for a model response provided bt Binder
+ */
 export interface Response<T extends ModelData> {
     data: T,
-    with: Map<string, Response<any>>,
+    with: { [key: string]: ModelData },
     meta: object
-    withMapping: Map<string, string>
+    withMapping: { [key: string]: string },
 }
 
 
@@ -14,8 +17,8 @@ export interface Response<T extends ModelData> {
  */
 export interface LegacyResponse<T extends ModelData> {
     data: T,
-    repos: Map<string, Response<any>>,
-    relMapping: Map<string, string>
+    repos: { [key: string]: ModelData },
+    relMapping: { [key: string]: string },
 }
 
 /**
