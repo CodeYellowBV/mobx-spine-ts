@@ -1,5 +1,5 @@
 import {action, computed, extendObservable, isObservableProp} from 'mobx';
-import {camelToSnake} from "./Utils";
+import {camelToSnake, createRelationTree, snakeToCamel} from "./Utils";
 import {forIn, uniqueId, result, mapValues, isPlainObject, get, each} from 'lodash'
 import {Store} from "./Store";
 import {modelResponseAdapter, Response, ResponseAdapter} from "./Model/BinderResponse";
@@ -62,8 +62,6 @@ export class Model<T extends ModelData> {
             }
 
             this.__attributes.push(key)
-
-
         });
 
 
@@ -75,6 +73,7 @@ export class Model<T extends ModelData> {
         if (data) {
             this.parse(data);
         }
+        ;
 
         this.initialize();
     }
@@ -93,13 +92,12 @@ export class Model<T extends ModelData> {
 
         forIn(data, (value: object, key: string) => {
             const attr = this.constructor['fromBackendAttrKey'](key);
-
-
             // parse normal attributes
             if (this.__attributes.includes(key)) {
                 // @ts-ignore
                 this[attr] = value;
-            } else if (this.__activeCurrentRelations.includes(attr)) {
+            } else if (this.__activeCurrentRelations.includes(key)) {
+
                 // Parse the relations
                 if (isPlainObject(value) || isPlainObject(get(value, '[0]'))) {
                     this[attr].parse(value);
@@ -178,7 +176,7 @@ export class Model<T extends ModelData> {
     }
 
     @action
-    fromBackend(input: ResponseAdapter<T>) {
+    fromBackend(input: ResponseAdapter<T>): void {
         const response = modelResponseAdapter(input);
         const {data} = response;
 
@@ -197,14 +195,48 @@ export class Model<T extends ModelData> {
      * @param response
      */
     __parseFromBackendRelations(response: Response<T>): void {
+        const relationTree = createRelationTree(this.__activeRelations);
 
-        const relationTree = [];
 
-        this.__activeRelations.forEach((relationName) => {
+        for (const relationName in relationTree) {
+            const backendRelationName = this.constructor['toBackendAttrKey'](relationName);
+            // The primary key of the relation
+            const relationId: number = response.data[backendRelationName]
             debugger;
-        })
 
+            // Not set relations do not have to be traversed
+            if (!relationId) {
+                const Relation = this.relations()[relationName];
+                // @ts-ignore
+                this[relationName] = new Relation();
+                continue;
+            }
 
+            const backendModelName = response.with_mapping[backendRelationName];
+            const collectionData: object[] = response.with[backendModelName];
+            const relationData = collectionData.find(model => model['id'] === relationId);
+
+            // For the withMapping, we need to strip the relation part of the withMapping. i.e. {"kind.breed": "animal_breed"}
+            // for relation "kind", becomes {"breed": "animal_breed"}. WithMapping not belonging to this relation are ignored
+            const filteredWithMapping: { [key: string]: string } = {}
+
+            for (const withMappingName in response.with_mapping) {
+                if (!withMappingName.startsWith(`${relationName}.`)) {
+                    continue;
+                }
+
+                // +1 is to account for the .
+                const newKey = withMappingName.substr(relationName.length + 1);
+                filteredWithMapping[newKey] = response.with_mapping[withMappingName];
+            }
+
+            this[relationName].fromBackend({
+                data: relationData,
+                with: response.with,
+                meta: {},
+                with_mapping: filteredWithMapping
+            });
+        }
     }
 
 
@@ -220,12 +252,22 @@ export class Model<T extends ModelData> {
     }
 
 
-    protected relations(): { [name: string]: Function } {
+    protected relations(): { [name: string]: (new () => Model<any>) } {
         return {};
     }
 
     // Empty function, but can be overridden if you want to do something after initializing the model.
     protected initialize() {
+    }
+
+  /**
+     * In the backend we use snake case names. In the frontend we use snakeCase names everywhere. THis translates
+     * in between them
+     *
+     * @param attrKey
+     */
+    static toBackendAttrKey(attrKey: string): string {
+        return camelToSnake(attrKey);
     }
 
     /**
@@ -235,7 +277,7 @@ export class Model<T extends ModelData> {
      * @param attrKey
      */
     static fromBackendAttrKey(attrKey: string): string {
-        return camelToSnake(attrKey);
+        return snakeToCamel(attrKey);
     }
 
     set primaryKey(v: any) {

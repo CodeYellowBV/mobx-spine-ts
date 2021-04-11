@@ -3,6 +3,14 @@ export function camelToSnake(s: string): string {
     return s.replace(/([A-Z])/g, $1 => '_' + $1.toLowerCase());
 }
 
+// lodash's `camelCase` method removes dots from the string; this breaks mobx-spine
+export function snakeToCamel(s: string): string {
+    if (s.startsWith('_')) {
+        return s;
+    }
+    return s.replace(/_\w/g, m => m[1].toUpperCase());
+}
+
 
 // Interface and not type, because types cannot do recursion?
 interface RelationTree {

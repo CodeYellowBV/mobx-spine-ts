@@ -5,9 +5,9 @@ import {ModelData} from "../Model";
  */
 export interface Response<T extends ModelData> {
     data: T,
-    with: { [key: string]: ModelData },
+    with: { [key: string]: ModelData[] },
     meta: object
-    withMapping: { [key: string]: string },
+    with_mapping: { [key: string]: string },
 }
 
 
@@ -17,8 +17,8 @@ export interface Response<T extends ModelData> {
  */
 export interface LegacyResponse<T extends ModelData> {
     data: T,
-    repos: { [key: string]: ModelData },
-    relMapping: { [key: string]: string },
+    repos?: { [key: string]: ModelData[] },
+    relMapping?: { [key: string]: string },
 }
 
 /**
@@ -39,8 +39,8 @@ export function modelResponseAdapter<T extends ModelData>(response: ResponseAdap
 
     return {
         data: response.data,
-        with: (response as LegacyResponse<T>).repos,
+        with: (response as LegacyResponse<T>).repos || {},
         meta: {},
-        withMapping: (response as LegacyResponse<T>).relMapping
+        with_mapping: (response as LegacyResponse<T>).relMapping || {}
     }
 }

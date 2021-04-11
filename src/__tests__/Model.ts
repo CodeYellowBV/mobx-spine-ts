@@ -1,7 +1,9 @@
 import {Animal, AnimalCircular, Breed, Kind, Location, Person} from "./fixtures/Animal";
+import {Location as CustomerLocation} from "./fixtures/Customer";
 import {Model, tsPatch} from "../Model";
 import {observable} from "mobx";
 import animalKindBreedData from "./fixtures/animal-with-kind-breed.json";
+import customersLocationBestCookWorkPlaces from './fixtures/customers-location-best-cook-work-places.json';
 
 const spyWarn = jest.spyOn(console, 'warn');
 
@@ -260,11 +262,7 @@ test('Parsing two-level relation (direct api response)', () => {
     const animal = new Animal(null, {
         relations: ['kind.breed'],
     });
-    animal.fromBackend({
-        data: animalKindBreedData.data,
-        repos: animalKindBreedData.with,
-        relMapping: animalKindBreedData.with_mapping,
-    });
+    animal.fromBackend(animalKindBreedData);
     expect(animal.id).toBe(1);
     expect(animal.name).toBe('Woofer');
     // @ts-ignore
@@ -278,3 +276,77 @@ test('Parsing two-level relation (direct api response)', () => {
 });
 
 
+test('Parsing two times', () => {
+    const animal = new Animal({
+        id: 2,
+    });
+    animal.fromBackend({
+        data: {name: 'Woofer'},
+    });
+    expect(animal.id).toBe(2);
+    expect(animal.name).toBe('Woofer');
+});
+
+
+test('Parsing empty relation (with repos)', () => {
+    const location = new CustomerLocation({}, {relations: ['bestCook.currentWork']});
+    location.fromBackend({
+        data: customersLocationBestCookWorkPlaces.data,
+        repos: customersLocationBestCookWorkPlaces.with,
+        relMapping: customersLocationBestCookWorkPlaces.with_mapping,
+    });
+    // @ts-ignore
+    expect(location.bestCook.id).toBe(null);
+});
+
+test('Parsing empty relation (direct api response)', () => {
+    const location = new CustomerLocation({}, {relations: ['bestCook.currentWork']});
+    location.fromBackend(customersLocationBestCookWorkPlaces);
+    // @ts-ignore
+    expect(location.bestCook.id).toBe(null);
+});
+
+
+test('Parsing empty relation which was already set', () => {
+    const location = new CustomerLocation(
+        {
+            bestCook: {
+                id: 1,
+                name: 'Zaico',
+                profession: 'Programmer',
+            },
+        },
+        {relations: ['bestCook.currentWork']}
+    );
+    // @ts-ignore
+    expect(location.bestCook.id).toBe(1);
+    // @ts-ignore
+    expect(location.bestCook.name).toBe('Zaico');
+    // @ts-ignore
+    expect(location.bestCook.profession).toBe('Programmer');
+    location.fromBackend({
+        data: customersLocationBestCookWorkPlaces.data,
+        repos: customersLocationBestCookWorkPlaces.with,
+        relMapping: customersLocationBestCookWorkPlaces.with_mapping,
+    });
+    // @ts-ignore
+    expect(location.bestCook.id).toBe(null);
+    // @ts-ignore
+    expect(location.bestCook.name).toBe('');
+    // @ts-ignore
+    expect(location.bestCook.profession).toBe('chef');
+});
+// test('Parsing two-level relation (nested)', () => {
+//     const animal = new Animal(null, {
+//         relations: ['kind.breed'],
+//     });
+//     animal.fromBackend({
+//         data: animalKindBreedDataNested.data,
+//     });
+//     expect(animal.id).toBe(1);
+//     expect(animal.name).toBe('Woofer');
+//     expect(animal.kind.id).toBe(4);
+//     expect(animal.kind.name).toBe('Good Dog');
+//     expect(animal.kind.breed.id).toBe(3);
+//     expect(animal.kind.breed.name).toBe('Good Pupper');
+// });
