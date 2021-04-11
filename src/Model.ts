@@ -2,7 +2,8 @@ import {action, computed, extendObservable, isObservableProp} from 'mobx';
 import {camelToSnake, createRelationTree, snakeToCamel} from "./Utils";
 import {forIn, uniqueId, result, mapValues, isPlainObject, get, each} from 'lodash'
 import {Store} from "./Store";
-import {modelResponseAdapter, Response, ResponseAdapter} from "./Model/BinderResponse";
+import {ResponseAdapter} from "./Model/BinderResponse";
+import baseFromBackend from "./Model/FromBackend";
 
 // Find the relation name before the first dot, and include all other relations after it
 // Example: input `animal.kind.breed` output -> `['animal', 'kind.breed']`
@@ -73,7 +74,6 @@ export class Model<T extends ModelData> {
         if (data) {
             this.parse(data);
         }
-        ;
 
         this.initialize();
     }
@@ -176,68 +176,7 @@ export class Model<T extends ModelData> {
     }
 
     @action
-    fromBackend(input: ResponseAdapter<T>): void {
-        const response = modelResponseAdapter(input);
-        const {data} = response;
-
-        this.__parseFromBackendRelations(response);
-
-
-        if (data) {
-            this.parse(data);
-        }
-    }
-
-
-    /**
-     * When we get the backend data, we also get the data from the relations. This method parses the backend
-     * relations for this model
-     * @param response
-     */
-    __parseFromBackendRelations(response: Response<T>): void {
-        const relationTree = createRelationTree(this.__activeRelations);
-
-
-        for (const relationName in relationTree) {
-            const backendRelationName = this.constructor['toBackendAttrKey'](relationName);
-            // The primary key of the relation
-            const relationId: number = response.data[backendRelationName]
-            debugger;
-
-            // Not set relations do not have to be traversed
-            if (!relationId) {
-                const Relation = this.relations()[relationName];
-                // @ts-ignore
-                this[relationName] = new Relation();
-                continue;
-            }
-
-            const backendModelName = response.with_mapping[backendRelationName];
-            const collectionData: object[] = response.with[backendModelName];
-            const relationData = collectionData.find(model => model['id'] === relationId);
-
-            // For the withMapping, we need to strip the relation part of the withMapping. i.e. {"kind.breed": "animal_breed"}
-            // for relation "kind", becomes {"breed": "animal_breed"}. WithMapping not belonging to this relation are ignored
-            const filteredWithMapping: { [key: string]: string } = {}
-
-            for (const withMappingName in response.with_mapping) {
-                if (!withMappingName.startsWith(`${relationName}.`)) {
-                    continue;
-                }
-
-                // +1 is to account for the .
-                const newKey = withMappingName.substr(relationName.length + 1);
-                filteredWithMapping[newKey] = response.with_mapping[withMappingName];
-            }
-
-            this[relationName].fromBackend({
-                data: relationData,
-                with: response.with,
-                meta: {},
-                with_mapping: filteredWithMapping
-            });
-        }
-    }
+    fromBackend = baseFromBackend;
 
 
     @computed
@@ -260,7 +199,7 @@ export class Model<T extends ModelData> {
     protected initialize() {
     }
 
-  /**
+    /**
      * In the backend we use snake case names. In the frontend we use snakeCase names everywhere. THis translates
      * in between them
      *

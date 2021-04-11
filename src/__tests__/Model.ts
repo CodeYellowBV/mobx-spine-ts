@@ -4,6 +4,7 @@ import {Model, tsPatch} from "../Model";
 import {observable} from "mobx";
 import animalKindBreedData from "./fixtures/animal-with-kind-breed.json";
 import customersLocationBestCookWorkPlaces from './fixtures/customers-location-best-cook-work-places.json';
+import animalKindBreedDataNested from './fixtures/animal-with-kind-breed-nested.json';
 
 const spyWarn = jest.spyOn(console, 'warn');
 
@@ -336,17 +337,22 @@ test('Parsing empty relation which was already set', () => {
     // @ts-ignore
     expect(location.bestCook.profession).toBe('chef');
 });
-// test('Parsing two-level relation (nested)', () => {
-//     const animal = new Animal(null, {
-//         relations: ['kind.breed'],
-//     });
-//     animal.fromBackend({
-//         data: animalKindBreedDataNested.data,
-//     });
-//     expect(animal.id).toBe(1);
-//     expect(animal.name).toBe('Woofer');
-//     expect(animal.kind.id).toBe(4);
-//     expect(animal.kind.name).toBe('Good Dog');
-//     expect(animal.kind.breed.id).toBe(3);
-//     expect(animal.kind.breed.name).toBe('Good Pupper');
-// });
+
+test('Parsing two-level relation (nested)', () => {
+    const animal = new Animal(null, {
+        relations: ['kind.breed'],
+    });
+    animal.fromBackend({
+        data: animalKindBreedDataNested.data,
+    });
+    expect(animal.id).toBe(1);
+    expect(animal.name).toBe('Woofer');
+    // @ts-ignore
+    expect(animal.kind.id).toBe(4);
+    // @ts-ignore
+    expect(animal.kind.name).toBe('Good Dog');
+    // @ts-ignore
+    expect(animal.kind.breed.id).toBe(3);
+    // @ts-ignore
+    expect(animal.kind.breed.name).toBe('Good Pupper');
+});
