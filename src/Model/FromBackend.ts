@@ -16,7 +16,7 @@ export default function fromBackend<T>(this: Model<T>, input: ResponseAdapter<T>
     parseFromBackendRelations.bind(this)(response);
 
     if (data) {
-        this.parse(data);
+        this.parse(data as T);
     }
 }
 

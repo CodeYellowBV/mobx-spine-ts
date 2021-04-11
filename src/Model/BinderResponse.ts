@@ -4,7 +4,7 @@ import {ModelData} from "../Model";
  * Interface for a model response provided bt Binder
  */
 export interface Response<T extends ModelData> {
-    data: T,
+    data: T | T[],
     with: { [key: string]: ModelData[] },
     meta: object
     with_mapping: { [key: string]: string },
@@ -16,7 +16,7 @@ export interface Response<T extends ModelData> {
  * It had the same data, but with other naming.
  */
 export interface LegacyResponse<T extends ModelData> {
-    data: T,
+    data: T | T[],
     repos?: { [key: string]: ModelData[] },
     relMapping?: { [key: string]: string },
 }

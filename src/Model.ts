@@ -1,8 +1,7 @@
 import {action, computed, extendObservable, isObservableProp} from 'mobx';
-import {camelToSnake, createRelationTree, snakeToCamel} from "./Utils";
+import {camelToSnake, snakeToCamel} from "./Utils";
 import {forIn, uniqueId, result, mapValues, isPlainObject, get, each} from 'lodash'
 import {Store} from "./Store";
-import {ResponseAdapter} from "./Model/BinderResponse";
 import baseFromBackend from "./Model/FromBackend";
 
 // Find the relation name before the first dot, and include all other relations after it
@@ -13,10 +12,12 @@ export interface ModelData {
 
 }
 
-export interface ModelOptions {
+export interface ModelOptions<T> {
     relations?: string[],     // List of active relations for this model
+    store?: Store<T, Model<T>>,
 }
 
+type StoreOrModelConstructor = (new () => Model<any>) | (new () => Store<any, any>);
 
 export class Model<T extends ModelData> {
     static primaryKey: string = 'id';
@@ -31,7 +32,7 @@ export class Model<T extends ModelData> {
 
     __activeCurrentRelations: string[] = [];
 
-    public constructor(data?: T, options?: ModelOptions) {
+    public constructor(data?: T, options?: ModelOptions<T>) {
         // Make sure the model is patched, such that the afterConstruct is called
         if (!this.constructor['_isTsPatched']) {
             throw new Error("Model is not patched with @tsPatch")
@@ -47,7 +48,7 @@ export class Model<T extends ModelData> {
      * @param options
      * @private
      */
-    private afterConstructor(data?: T, options?: ModelOptions) {
+    private afterConstructor(data?: T, options?: ModelOptions<T>) {
         options = options || {};
 
         // Fin all the attributes
@@ -163,7 +164,7 @@ export class Model<T extends ModelData> {
                     if (!RelationModel) {
                         throw Error(`Specified relation "${relationName}" does not exist on model.`);
                     }
-                    const options: ModelOptions = {relations: otherRelationNames};
+                    const options: ModelOptions<T> = {relations: otherRelationNames};
                     if (RelationModel.prototype instanceof Store) {
                         // @ts-ignore
                         return new RelationModel(options);
@@ -191,7 +192,7 @@ export class Model<T extends ModelData> {
     }
 
 
-    protected relations(): { [name: string]: (new () => Model<any>) } {
+    protected relations(): { [name: string]: StoreOrModelConstructor } {
         return {};
     }
 
@@ -238,7 +239,7 @@ export class Model<T extends ModelData> {
  * Patches the model classes, such that
  * @param subClass
  */
-export function tsPatch<U, T extends { new(data?: U, options?: ModelOptions, ...args: any[]): {} }>(subClass: T) {
+export function tsPatch<U extends ModelData, T extends { new(data?: U, options?: ModelOptions<U>, ...args: any[]): {} }>(subClass: T) {
     // @ts-ignore
     return class extends subClass {
         // This denotes to the superclass that we have patched the model, which is checked to test that we have overwritten
@@ -246,7 +247,7 @@ export function tsPatch<U, T extends { new(data?: U, options?: ModelOptions, ...
         static _isTsPatched = true;
 
         // TODO: we should  be able to fix this with types, such that the ts-ignores are not missed?
-        constructor(data?: U, options?: ModelOptions, ...args) {
+        constructor(data?: U, options?: ModelOptions<T>, ...args) {
             // @ts-ignore
             super(data, options, args);
 

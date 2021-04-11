@@ -50,5 +50,4 @@ export function createRelationTree(relations: string[]): RelationTree {
 
 
     return tree;
-
 }

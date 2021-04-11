@@ -356,3 +356,17 @@ test('Parsing two-level relation (nested)', () => {
     // @ts-ignore
     expect(animal.kind.breed.name).toBe('Good Pupper');
 });
+
+test('Parsing store relation (nested)', () => {
+    const animal = new Animal(null, {
+        relations: ['pastOwners'],
+    });
+    animal.fromBackend({
+        data: animalKindBreedDataNested.data,
+    });
+    expect(animal.id).toBe(1);
+    // @ts-ignore
+    expect(animal.pastOwners.length).toBe(2);
+    // @ts-ignore
+    expect(animal.pastOwners.map('id')).toEqual([50, 51]);
+});

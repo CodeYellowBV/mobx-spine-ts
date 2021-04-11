@@ -1,6 +1,6 @@
 import {observable} from 'mobx';
 import {Model, Store, BinderApi} from '../..';
-import {ModelOptions, tsPatch} from "../../Model";
+import {tsPatch} from "../../Model";
 
 type LocationData = {
     id?: number,
@@ -13,7 +13,6 @@ export class Location extends Model<LocationData> {
     @observable id = null;
     @observable name = '';
 }
-
 
 
 type BreedData = {
@@ -53,10 +52,10 @@ export class Person extends Model<PersonData> {
     }
 }
 
-// export class PersonStore extends Store {
-//     Model = Person;
-// }
-//
+export class PersonStore extends Store<PersonData, Person> {
+    Model = Person;
+}
+
 
 type KindData = {
     name?: string,
@@ -98,7 +97,7 @@ export class Animal extends Model<AnimalData> {
         return {
             kind: Kind,
             owner: Person,
-            // pastOwners: PersonStore,
+            pastOwners: PersonStore,
         };
     }
 }
@@ -152,8 +151,8 @@ export class Animal extends Model<AnimalData> {
 // }
 //
 interface AnimalCircularData {
-    id ?: number,
-    circular ?: AnimalCircularData
+    id?: number,
+    circular?: AnimalCircularData
 }
 
 @tsPatch
