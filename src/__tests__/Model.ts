@@ -402,8 +402,13 @@ test('Parsing store relation with model relation in it', () => {
         repos: animalsWithPastOwnersAndTownData.with,
         relMapping: animalsWithPastOwnersAndTownData.with_mapping,
     });
+
+
     // @ts-ignore
     expect(animal.pastOwners.map('id')).toEqual([55, 66]);
+
+
+
     // @ts-ignore
     expect(animal.pastOwners.get(55).town).toBeInstanceOf(Location);
     // @ts-ignore

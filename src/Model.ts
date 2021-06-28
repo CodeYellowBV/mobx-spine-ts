@@ -9,7 +9,7 @@ import baseFromBackend from "./Model/FromBackend";
 const RE_SPLIT_FIRST_RELATION = /([^.]+)\.(.+)/;
 
 export interface ModelData {
-
+    id?: number
 }
 
 export interface ModelOptions<T> {
@@ -178,7 +178,6 @@ export class Model<T extends ModelData> {
 
     @action
     fromBackend = baseFromBackend;
-
 
     @computed
     get isNew(): boolean {

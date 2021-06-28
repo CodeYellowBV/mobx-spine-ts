@@ -3,14 +3,21 @@ import {action, computed, IObservableArray, observable} from "mobx";
 import {modelResponseAdapter, ResponseAdapter} from "./Model/BinderResponse";
 import {map, isArray, sortBy} from 'lodash';
 
+export interface StoreOptions<T> {
+    relations?: string[],     // List of active relations for this store
+}
 
-export class Store<T, U extends Model<T>> {
+export class Store<T extends ModelData, U extends Model<T>> {
     models: IObservableArray<Model<T>> = observable([]);
     __activeRelations: string[] = []
     comparator: ((o1: Model<T>, o2: Model<T>) => number);
 
+
     Model: (new (data?: T, options?: ModelOptions<T>) => Model<T>) = null;
 
+    public constructor(data?: T[], options?: StoreOptions<T>) {
+        this.__activeRelations = options?.relations || [];
+    }
 
     public fromBackend<T>(input: ResponseAdapter<T>): void {
         const response = modelResponseAdapter(input);
@@ -84,5 +91,16 @@ export class Store<T, U extends Model<T>> {
 
     sortBy(iteratees): Model<T>[] {
         return sortBy(this.models, iteratees);
+    }
+
+    /**
+     * Get a model from the store by the id. If it doesn't exist, return null
+     *
+     * @param id
+     */
+    get(id: number): Model<T> | null {
+     return this.models.find(
+            model => model[model.constructor['primaryKey']] === id
+        );
     }
 }
