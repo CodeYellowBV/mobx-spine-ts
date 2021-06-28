@@ -103,4 +103,21 @@ export class Store<T extends ModelData, U extends Model<T>> {
             model => model[model.constructor['primaryKey']] === id
         );
     }
+
+    /**
+     * Get the model at a certain position in the array
+     *
+     * @param index
+     */
+    at(index: number) : Model<T> | null {
+        if (index < 0) {
+            index += this.length;
+        }
+
+        if (index >= this.length) {
+            return null;
+        }
+
+        return this.models[index];
+    }
 }

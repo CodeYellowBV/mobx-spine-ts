@@ -22,6 +22,10 @@ export class Restaurant extends Model<RestaurantData> {
     }
 }
 
+export class RestaurantStore extends Store<RestaurantData, Restaurant> {
+    Model = Restaurant
+}
+
 type CookData = {
     id?: number,
     name?: string,
@@ -29,7 +33,7 @@ type CookData = {
 }
 
 @tsPatch
-export class Cook extends Model<CookData> implements CookData{
+export class Cook extends Model<CookData> implements CookData {
     @observable id = null;
     @observable name = '';
     @observable profession = 'chef';
@@ -37,6 +41,7 @@ export class Cook extends Model<CookData> implements CookData{
     relations() {
         return {
             currentWork: Restaurant,
+            workPlaces: RestaurantStore
         };
     }
 }
