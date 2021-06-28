@@ -71,18 +71,18 @@ function parseFromBackendRelations<T>(this: Model<T>, response: Response<T>): vo
  * @param response
  * @param relationName
  */
-function filterWithMapping<T>(response: Response<T>, relationName: string): { [key: string]: string } {
+function filterWithMapping<T>(response: Response<T>, backendRelationName: string): { [key: string]: string } {
     // For the withMapping, we need to strip the relation part of the withMapping. i.e. {"kind.breed": "animal_breed"}
     // for relation "kind", becomes {"breed": "animal_breed"}. WithMapping not belonging to this relation are ignored
     const filteredWithMapping: { [key: string]: string } = {}
 
     for (const withMappingName in response.with_mapping) {
-        if (!withMappingName.startsWith(`${relationName}.`)) {
+        if (!withMappingName.startsWith(`${backendRelationName}.`)) {
             continue;
         }
 
         // +1 is to account for the .
-        const newKey = withMappingName.substr(relationName.length + 1);
+        const newKey = withMappingName.substr(backendRelationName.length + 1);
         filteredWithMapping[newKey] = response.with_mapping[withMappingName];
     }
 
@@ -155,7 +155,7 @@ function parseOneToRelations<T>(this: Model<T>, response: Response<T>, relationN
         relationData = collectionData.find(model => model['id'] === relationDataRaw as number);
     }
 
-    const filteredWithMapping = filterWithMapping(response, relationName);
+    const filteredWithMapping = filterWithMapping(response, backendRelationName);
 
 
     this[relationName].fromBackend({
@@ -196,7 +196,7 @@ function parseManyToRelations<T, U extends ModelData>(this: Model<T>, response: 
     });
 
 
-    const filteredWithMapping = filterWithMapping(response, relationName);
+    const filteredWithMapping = filterWithMapping(response, backendRelationName);
 
     // And fill the store
     this[relationName].fromBackend({
