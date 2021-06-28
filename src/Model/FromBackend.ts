@@ -175,25 +175,41 @@ function parseOneToRelations<T>(this: Model<T>, response: Response<T>, relationN
 function parseManyToRelations<T, U extends ModelData>(this: Model<T>, response: Response<T>, relationName: string): void {
     const backendRelationName = this.constructor['toBackendAttrKey'](relationName);
     // The primary keys of the relation
-    const relationDataRaw: number[] = response.data[backendRelationName];
+    const relationDataRaw: number[] | ModelData[] = response.data[backendRelationName];
+
+    // Heuristic if we have a nested relation. If it is not nested, it is a number. Otherwise it is an object
+    // Relations that are empty are always not nested
+    const isNested = relationDataRaw.length && isObject(relationDataRaw[0]);
+
+
 
     // Initate the store
     // @ts-ignore
     const RelationStore = this.relations()[relationName] as Store<U, Model<U>>;
+
+
     // @ts-ignore
     this[relationName] = new RelationStore(null, {
         relations: filterActiveRelations(this.__activeRelations, relationName)
     });
 
-    // Find the collection data that we are references
-    const backendModelName = response.with_mapping[backendRelationName];
-    const collectionData: object[] = response.with[backendModelName];
 
-    // Get the actual array of model data for the store
-    const relationData = collectionData.filter((modelData: ModelData) => {
-        const relationId = modelData.id;
-        return relationDataRaw.includes(relationId);
-    });
+
+    let relationData: ModelData[] = [];
+    if (isNested) {
+        relationData = response.data[backendRelationName];
+
+    } else {
+        // Find the collection data that we are references
+        const backendModelName = response.with_mapping[backendRelationName];
+        const collectionData: object[] = response.with[backendModelName];
+
+        // Get the actual array of model data for the store
+        relationData = collectionData.filter((modelData: ModelData) => {
+            const relationId = modelData.id;
+            return relationDataRaw.includes(relationId);
+        });
+    }
 
 
     const filteredWithMapping = filterWithMapping(response, backendRelationName);
