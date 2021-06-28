@@ -1,10 +1,13 @@
 import {Model, ModelData, ModelOptions} from "Model";
-import {IObservableArray, observable} from "mobx";
+import {action, computed, IObservableArray, observable} from "mobx";
 import {modelResponseAdapter, ResponseAdapter} from "./Model/BinderResponse";
+import {map, isArray, sortBy} from 'lodash';
+
 
 export class Store<T, U extends Model<T>> {
     models: IObservableArray<Model<T>> = observable([]);
     __activeRelations: string[] = []
+    comparator: ((o1: Model<T>, o2: Model<T>) => number);
 
     Model: (new (data?: T, options?: ModelOptions<T>) => Model<T>) = null;
 
@@ -15,8 +18,9 @@ export class Store<T, U extends Model<T>> {
         this.models.replace(
             (response.data as T[]).map(
                 // (ModelData: T) is not working????
+
                 (modelData: ModelData) => {
-                    const model = this.__newModel();
+                    const model = this._newModel();
                     model.fromBackend(
                         {
                             data: modelData,
@@ -31,10 +35,54 @@ export class Store<T, U extends Model<T>> {
         )
     }
 
-    protected __newModel(data?: T): Model<T> {
+    protected _newModel(data?: T): Model<T> {
         return new this.Model(data, {
             store: this,
             relations: this.__activeRelations
         })
+    }
+
+    @computed
+    get length(): number {
+        return this.models.length;
+    }
+
+    map<V>(mapping: (model: Model<T>) => V): V[] {
+        return map(this.models, mapping);
+    }
+
+    @action
+    parse(models: T[]) {
+        if (!isArray(models)) {
+            throw Error(`Parameter supplied to \`parse()\` is not an array, got: ${JSON.stringify(
+                models
+            )}`)
+        }
+
+        // Parse does not mutate __setChanged, as it is used in
+        // fromBackend in the model...
+        this.models.replace(models.map(this._newModel.bind(this)));
+        this.sort();
+
+        return this;
+    }
+
+    @action
+    sort(): this {
+        if (!this.comparator) {
+            return this;
+        }
+        if (!this.comparator) {
+            return this;
+        }
+        if (typeof this.comparator === 'string') {
+            this.models.replace(this.sortBy(this.comparator));
+        } else {
+            this.models.replace(this.models.slice().sort(this.comparator));
+        }
+    }
+
+    sortBy(iteratees): Model<T>[] {
+        return sortBy(this.models, iteratees);
     }
 }

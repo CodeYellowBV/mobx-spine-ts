@@ -1,10 +1,12 @@
-import {Animal, AnimalCircular, Breed, Kind, Location, Person} from "./fixtures/Animal";
-import {Location as CustomerLocation} from "./fixtures/Customer";
+import {Animal, AnimalCircular, Breed, Kind, Location, Person, PersonStore} from "./fixtures/Animal";
+import {Location as CustomerLocation, Customer} from "./fixtures/Customer";
 import {Model, tsPatch} from "../Model";
 import {observable} from "mobx";
 import animalKindBreedData from "./fixtures/animal-with-kind-breed.json";
 import customersLocationBestCookWorkPlaces from './fixtures/customers-location-best-cook-work-places.json';
 import animalKindBreedDataNested from './fixtures/animal-with-kind-breed-nested.json';
+import animalsWithPastOwnersAndTownData from "./fixtures/animals-with-past-owners-and-town.json";
+import customersWithTownCookRestaurant from './fixtures/customers-with-town-cook-restaurant.json';
 
 const spyWarn = jest.spyOn(console, 'warn');
 
@@ -367,6 +369,68 @@ test('Parsing store relation (nested)', () => {
     expect(animal.id).toBe(1);
     // @ts-ignore
     expect(animal.pastOwners.length).toBe(2);
+
     // @ts-ignore
     expect(animal.pastOwners.map('id')).toEqual([50, 51]);
+});
+
+test('Parsing two times with store relation', () => {
+    const animal = new Animal(null, {
+        relations: ['pastOwners'],
+    });
+    // @ts-ignore
+    animal.pastOwners.parse([{ id: 3 }]);
+    // @ts-ignore
+    expect(animal.pastOwners.map('id')).toEqual([3]);
+    animal.parse({
+        name: 'Pupper',
+    });
+    // @ts-ignore
+    expect(animal.pastOwners.map('id')).toEqual([3]);
+});
+
+test('Parsing store relation with model relation in it', () => {
+    const animal = new Animal(null, {
+        relations: ['pastOwners.town'],
+    });
+    // @ts-ignore
+    expect(animal.pastOwners).not.toBeUndefined();
+    // @ts-ignore
+    expect(animal.pastOwners).toBeInstanceOf(PersonStore);
+    animal.fromBackend({
+        data: animalsWithPastOwnersAndTownData.data,
+        repos: animalsWithPastOwnersAndTownData.with,
+        relMapping: animalsWithPastOwnersAndTownData.with_mapping,
+    });
+    // @ts-ignore
+    expect(animal.pastOwners.map('id')).toEqual([55, 66]);
+    // @ts-ignore
+    expect(animal.pastOwners.get(55).town).toBeInstanceOf(Location);
+    // @ts-ignore
+    expect(animal.pastOwners.get(55).town.id).toBe(10);
+    // @ts-ignore
+    expect(animal.pastOwners.get(55).town.name).toBe('Eindhoven');
+    // @ts-ignore
+    expect(animal.pastOwners.get(66).town.id).toBe(11);
+    // @ts-ignore
+    expect(animal.pastOwners.get(66).town.name).toBe('Breda');
+});
+
+
+test('Parsing Store -> Model -> Store relation', () => {
+    const customer = new Customer(null, {
+        relations: ['oldTowns.bestCook.workPlaces'],
+    });
+    customer.fromBackend({
+        data: customersWithTownCookRestaurant.data,
+        repos: customersWithTownCookRestaurant.with,
+        relMapping: customersWithTownCookRestaurant.with_mapping,
+    });
+    // @ts-ignore
+    expect(customer.oldTowns.at(0).bestCook.id).toBe(50);
+    // @ts-ignore
+    expect(customer.oldTowns.at(0).bestCook.workPlaces.map('id')).toEqual([
+        5,
+        6,
+    ]);
 });
