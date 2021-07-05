@@ -58,6 +58,7 @@ export class PersonStore extends Store<PersonData, Person> {
 
 
 type KindData = {
+    id?: number;
     name?: string,
     breed?: Breed,
     location?: Location
@@ -102,54 +103,67 @@ export class Animal extends Model<AnimalData> {
     }
 }
 
-//
-// export class AnimalStore extends Store {
-//     Model = Animal;
-//     api = new BinderApi();
-//     url = '/api/animal/';
-// }
-//
-// export class AnimalStoreWithUrlFunction extends Store {
-//     Model = Animal;
-//     api = new BinderApi();
-//     randomId = 1;
-//     url() {
-//         return `/api/animal/${this.randomId}/`;
-//     }
-// }
-//
-// // I have no creativity left after 17h, sorry. Also ssssh.
-// export class AnimalWithArray extends Model {
-//     @observable foo = [];
-// }
-//
-// export class AnimalWithObject extends Model {
-//     @observable foo = {};
-// }
-//
-// export class AnimalWithFrontendProp extends Model {
-//     @observable id = null;
-//     @observable _frontend = null;
-// }
-//
-// export class AnimalWithoutApi extends Model {
-//     @observable id = null;
-// }
-//
-// export class AnimalStoreWithoutApi extends Store {
-//     Model = Animal;
-// }
-//
-// export class AnimalWithoutUrl extends Model {
-//     api = new BinderApi();
-//     @observable id = null;
-// }
-//
-// export class AnimalStoreWithoutUrl extends Store {
-//     api = new BinderApi();
-//     Model = Animal;
-// }
-//
+
+export class AnimalStore extends Store<AnimalData, Animal> {
+    Model = Animal;
+    api = new BinderApi();
+    url = '/api/animal/';
+}
+
+export class AnimalStoreWithUrlFunction extends Store<AnimalData, Animal> {
+    Model = Animal;
+    api = new BinderApi();
+    randomId = 1;
+    url() {
+        return `/api/animal/${this.randomId}/`;
+    }
+}
+
+interface AnimalArrayData {
+    id?: number;
+    foo?: string[];
+}
+
+// I have no creativity left after 17h, sorry. Also ssssh.
+export class AnimalWithArray extends Model<AnimalArrayData> {
+    @observable foo = [];
+}
+
+interface AnimalObjectData {
+    id?: number;
+    foo?: object;
+}
+export class AnimalWithObject extends Model<AnimalObjectData> {
+    @observable foo: object = {};
+}
+
+interface AnimalFrontendData {
+    id?: number;
+    _frontend?: string;
+}
+export class AnimalWithFrontendProp extends Model<AnimalFrontendData> {
+    @observable id = null;
+    @observable _frontend = null;
+}
+
+export class AnimalWithoutApi extends Model<{ id?: number}> {
+    @observable id = null;
+}
+
+export class AnimalStoreWithoutApi extends Store<AnimalData, Animal> {
+    Model = Animal;
+}
+
+export class AnimalWithoutUrl extends Model<{ id?: number }> {
+    api = new BinderApi();
+    @observable id = null;
+}
+
+export class AnimalStoreWithoutUrl extends Store<AnimalData, Animal> {
+    api = new BinderApi();
+    Model = Animal;
+}
+
 interface AnimalCircularData {
     id?: number,
     circular?: AnimalCircularData
@@ -177,21 +191,22 @@ export class KindResourceName extends Model<KindResourceData> {
     @observable id = null;
 }
 
-// export class PersonStoreResourceName extends Store {
-//     Model = KindResourceName;
-//     static backendResourceName = 'person';
-//     api = new BinderApi();
-// }
-//
-// export class AnimalResourceName extends Model {
-//     api = new BinderApi();
-//     @observable id = null;
-//
-//     relations() {
-//         return {
-//             blaat: KindResourceName,
-//             owners: PersonStoreResourceName,
-//             pastOwners: PersonStoreResourceName,
-//         };
-//     }
-// }
+export class PersonStoreResourceName extends Store<PersonData, Person> {
+    Model = KindResourceName;
+    static backendResourceName = 'person';
+    api = new BinderApi();
+}
+
+@tsPatch
+export class AnimalResourceName extends Model<{}> {
+    api = new BinderApi();
+    @observable id = null;
+
+    relations() {
+        return {
+            blaat: KindResourceName,
+            owners: PersonStoreResourceName,
+            pastOwners: PersonStoreResourceName,
+        };
+    }
+}

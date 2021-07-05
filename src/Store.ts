@@ -9,7 +9,10 @@ export interface StoreOptions<T> {
 
 export class Store<T extends ModelData, U extends Model<T>> {
     models: IObservableArray<Model<T>> = observable([]);
-    __activeRelations: string[] = []
+    __activeRelations: string[] = [];
+
+    @observable __setChanged = false;
+
     comparator: ((o1: Model<T>, o2: Model<T>) => number);
 
 
@@ -72,6 +75,18 @@ export class Store<T extends ModelData, U extends Model<T>> {
         this.sort();
 
         return this;
+    }
+
+    @action
+    remove(models) {
+        const singular = !isArray(models);
+        models = singular ? [models] : models.slice();
+
+        models.forEach(model => this.models.remove(model));
+        if (models.length > 0) {
+            this.__setChanged = true;
+        }
+        return models;
     }
 
     @action
