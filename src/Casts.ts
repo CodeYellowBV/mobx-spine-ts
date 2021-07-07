@@ -1,7 +1,6 @@
 import moment from 'moment';
 import { DateTime } from 'luxon';
 import { isArray } from 'lodash';
-import { invariant } from './Utils';
 
 /**
  * `Cast`s are used to automagically (de)serialize some properties of `Model`s. This is
@@ -9,17 +8,22 @@ import { invariant } from './Utils';
  * JavaScript (date)(time) object (and thus have a lot of useful methods), but the values
  * will always be sent as string over the network.
  */
-export interface Cast {
+export interface Cast<T> {
     /**
      * Parses the given `value` and returns a JavaScript representation of it. The
-     * `value` is typically received from the backend. The type of this representation
-     * differs per `Cast`.
+     * `value` is typically received from the backend.
      * @param attr The name of the attribute whose value should be parsed
      * @param value The value to be parsed
      */
-    parse(attr: string, value: string): any;
+    parse(attr: string, value: string): T;
 
-    toJS(attr: string, value: any): any;
+    /**
+     * Serializes the given `value` and returns a string representation of it. This
+     * string representation is typically sent to the backend.
+     * @param attr The name of the attribute whose value should be serialized
+     * @param value The value to be serialized
+     */
+    toJS(attr: string, value: T): string;
 
     // Casts are free to add extra properties
     [x: string]: any;
@@ -29,33 +33,33 @@ let DATE_LIB = 'moment';
 const SUPPORTED_DATE_LIBS = ['moment', 'luxon'];
 
 export function configureDateLib(dateLib) {
-    invariant(
-        SUPPORTED_DATE_LIBS.includes(dateLib),
-        `Unsupported date lib \`${dateLib}\`. ` +
-        `(Supported: ${SUPPORTED_DATE_LIBS.map((dateLib) => `\`${dateLib}\``).join(', ')})`,
-    );
+    if (!SUPPORTED_DATE_LIBS.includes(dateLib)) {
+        throw new Error(
+            `[mobx-spine] Unsupported date lib '${dateLib}'. Supported: ${
+                SUPPORTED_DATE_LIBS.map((dateLib) => "'" + dateLib + "'").join(', ')
+            }`
+        );
+    }
     DATE_LIB = dateLib;
 }
 
 function checkMomentInstance(attr, value) {
-    invariant(
-        moment.isMoment(value),
-        `Attribute \`${attr}\` is not a moment instance.`
-    );
+    if (!moment.isMoment(value)) {
+        throw new Error(`[mobx-spine] Attribute '${attr}' is not a moment instance.`);
+    }
 }
 
 function checkLuxonDateTime(attr, value) {
-    invariant(
-        DateTime.isDateTime(value),
-        `Attribute \`${attr}\` is not a luxon instance.`
-    );
+    if (!DateTime.isDateTime(value)) {
+        throw new Error(`[mobx-spine] Attribute '${attr}' is not a luxon instance.`)
+    }
 }
 
 const LUXON_DATE_FORMAT = 'yyyy-LL-dd';
 const LUXON_DATETIME_FORMAT = "yyyy'-'LL'-'dd'T'HH':'mm':'ssZZ";
 
 class Casts {
-    momentDate: Cast = {
+    momentDate: Cast<moment.Moment> = {
         parse(_attr, value) {
             if (value === null || value === undefined) {
                 return null;
@@ -72,7 +76,7 @@ class Casts {
         dateLib: 'moment',
     };
 
-    momentDatetime: Cast = {
+    momentDatetime: Cast<moment.Moment> = {
         parse(_attr, value) {
             if (value === null) {
                 return null;
@@ -89,7 +93,7 @@ class Casts {
         dateLib: 'moment',
     };
 
-    luxonDate: Cast = {
+    luxonDate: Cast<DateTime> = {
         parse(_attr, value) {
             if (value === null || value === undefined) {
                 return null;
@@ -106,7 +110,7 @@ class Casts {
         dateLib: 'luxon',
     };
 
-    luxonDatetime: Cast = {
+    luxonDatetime: Cast<DateTime> = {
         parse(_attr, value) {
             if (value === null) {
                 return null;
@@ -124,7 +128,7 @@ class Casts {
         dateLib: 'luxon',
     };
 
-    date: Cast = {
+    date: Cast<DateTime | moment.Moment> = {
         parse(...args) {
             return CASTS[`${DATE_LIB}Date`].parse(...args);
         },
@@ -136,7 +140,7 @@ class Casts {
         },
     };
 
-    datetime: Cast = {
+    datetime: Cast<DateTime | moment.Moment> = {
         parse(...args) {
             return CASTS[`${DATE_LIB}Datetime`].parse(...args);
         },
@@ -148,26 +152,18 @@ class Casts {
         },
     };
 
-    enum: (expectedValues: any[]) => Cast = expectedValues => {
-        invariant(
-            isArray(expectedValues),
-            'Invalid argument suplied to `Casts.enum`, expected an instance of array.'
-        );
+    enum<T>(expectedValues: T[]): Cast<T> {
         function checkExpectedValues(attr: string, value: any): any {
             if (value === null) {
                 return null;
-            }
-            if (expectedValues.includes(value)) {
+            } else if (expectedValues.includes(value)) {
                 return value;
+            } else {
+                throw new Error(`
+                Value set to attribute '${attr}' ${JSON.stringify(value)}', is not
+                one of the allowed enum: ${JSON.stringify(expectedValues)}.`
+                );
             }
-            invariant(
-                false,
-                `Value set to attribute \`${attr}\`, ${JSON.stringify(
-                    value
-                )}, is not one of the allowed enum: ${JSON.stringify(
-                    expectedValues
-                )}`
-            );
         }
         return {
             parse: checkExpectedValues,

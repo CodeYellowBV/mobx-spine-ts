@@ -7,6 +7,12 @@ import {Location as CustomerLocation, Customer} from "./fixtures/Customer";
 import {Model, ModelData, tsPatch} from "../Model";
 import { BinderApi } from "../BinderApi";
 import { toJS, observable} from "mobx";
+import axios from "axios";
+import MockAdapter from "axios-mock-adapter";
+import saveFailData from "./fixtures/save-fail.json";
+import saveNewFailData from "./fixtures/save-new-fail.json";
+import animalMultiPutError from "./fixtures/animals-multi-put-error.json";
+import animalMultiPutResponse from "./fixtures/animals-multi-put-response.json";
 import animalKindBreedData from "./fixtures/animal-with-kind-breed.json";
 import customersLocationBestCookWorkPlaces from './fixtures/customers-location-best-cook-work-places.json';
 import animalKindBreedDataNested from './fixtures/animal-with-kind-breed-nested.json';
@@ -77,23 +83,8 @@ test('`cid` should be a unique value`', () => {
     expect(a1.cid).not.toMatch(a2.cid);
 });
 
-test('primaryKey defined as not static should throw error', () => {
-    @tsPatch
-    class Zebra extends Model<object> {
-        // @ts-ignore
-        primaryKey = 'blaat';
-    }
-
-    expect(() => {
-        return new Zebra();
-    }).toThrow('`primaryKey` should be a static property on the model.');
-});
-
 test('Unpatched model should throw error', () => {
-    class Zebra extends Model<object> {
-        // @ts-ignore
-        primaryKey = 'blaat';
-    }
+    class Zebra extends Model<object> {}
 
     expect(() => {
         return new Zebra();
@@ -1179,7 +1170,7 @@ describe('requests', () => {
     });
 
     test('fetch with custom buildFetchData', () => {
-        const model = new class extends Model {
+        class TestModel extends Model<ModelData> {
             api = new BinderApi();
             static backendResourceName = 'resource';
 
@@ -1188,7 +1179,8 @@ describe('requests', () => {
             buildFetchData(options) {
                 return { custom: 'data' };
             }
-        }();
+        };
+        const model = new TestModel();
 
         mock.onAny().replyOnce(config => {
             expect(config.params).toEqual({
@@ -1208,7 +1200,7 @@ describe('requests', () => {
         const myApi = new BinderApi();
         mock.onAny().replyOnce(200, {});
         const spy = jest.spyOn(myApi, 'get');
-        class Zebra extends Model {
+        class Zebra extends Model<ModelData> {
             static backendResourceName = 'zebra';
             api = myApi;
             @observable id = null;
@@ -1416,6 +1408,7 @@ describe('requests', () => {
                 if (!err.response) {
                     throw err;
                 }
+                // @ts-ignore
                 expect(toJS(animal.backendValidationErrors).name).toEqual([
                     'blank',
                 ]);

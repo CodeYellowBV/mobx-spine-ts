@@ -1,5 +1,6 @@
 import axios, {AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse, Method} from 'axios';
 import {get} from 'lodash';
+import { Model } from './Model';
 
 interface RequestOptions {
     // If true, returns the whole axios response. Otherwise, parse the response data,
@@ -120,6 +121,25 @@ export class BinderApi {
         return xhr.then(onSuccess);
     }
 
+    parseBackendValidationErrors(response: object): object | null {
+        const valErrors = get(response, 'data.errors');
+        if (response['status'] === 400 && valErrors) {
+            return valErrors;
+        }
+        return null;
+    }
+
+    buildFetchModelParams<T>(model: Model<T>) {
+        return {
+            // TODO: I really dislike that this is comma separated and not an array.
+            // We should fix this in the Binder API.
+            with:
+                model.__activeRelations
+                    .map(model.constructor['toBackendAttrKey'])
+                    .join(',') || null,
+        };
+    }
+
     /**
      * Format the request data that is send to the server, based upon the provided data, and the http method
      *
@@ -173,6 +193,47 @@ export class BinderApi {
         }
     }
 
+    saveModel({ url, data, isNew, requestOptions }) {
+        const method = isNew ? 'post' : 'patch';
+        return this[method](url, data, requestOptions)
+            .then(newData => {
+                return { data: newData };
+            })
+            .catch(err => {
+                if (err.response) {
+                    err.valErrors = this.parseBackendValidationErrors(
+                        err.response
+                    );
+                }
+                throw err;
+            });
+    }
+
+    saveAllModels({ url, data, model, requestOptions }) {
+        return this.put(
+            url,
+            {
+                data: data.data,
+                with: data.relations,
+            },
+            requestOptions
+        )
+            .then(res => {
+                if (res['idmap']) {
+                    model.__parseNewIds(res['idmap']);
+                }
+                return res;
+            })
+            .catch(err => {
+                if (err.response) {
+                    err.valErrors = this.parseBackendValidationErrors(
+                        err.response
+                    );
+                }
+                throw err;
+            });
+    }
+
     public get(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
         return this.__request('get', url, data, options);
     }
@@ -193,5 +254,8 @@ export class BinderApi {
         return this.__request('delete', url, data, options);
     }
 
+    deleteModel(options: { url: string, requestOptions: RequestOptions }) {
+        // TODO: kind of silly now, but we'll probably want better error handling soon.
+        return this.delete(options.url, null, options.requestOptions);
+    }
 }
-

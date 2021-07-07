@@ -2,13 +2,17 @@ import {
     action, computed, extendObservable, isObservableProp, isObservableArray,
     isObservableObject, observable, toJS
 } from 'mobx';
-import { camelToSnake, invariant, snakeToCamel, forNestedRelations, relationsToNestedKeys } from "./Utils";
+import { camelToSnake, snakeToCamel, forNestedRelations, relationsToNestedKeys } from "./Utils";
 import {
-    concatInDict, forIn, uniqueId, result, mapValues, isPlainObject, isArray, 
+    forIn, uniqueId, result, mapValues, isPlainObject, isArray, 
     uniq, uniqBy, get, omit, mapKeys
 } from 'lodash'
 import {Store} from "./Store";
 import baseFromBackend from "./Model/FromBackend";
+
+function concatInDict(dict: object, key: string, value: any) {
+    dict[key] = dict[key] ? dict[key].concat(value) : value;
+}
 
 // Find the relation name before the first dot, and include all other relations after it
 // Example: input `animal.kind.breed` output -> `['animal', 'kind.breed']`
@@ -20,9 +24,9 @@ export interface ModelData {
     id?: number
 }
 
-export interface ToBackendParams<T extends ModelData> {
+export interface ToBackendParams<T extends ModelData, R> {
     data?: T;
-    mapData?: (x: Partial<T>) => any;
+    mapData?: (x: Partial<T>) => R;
 
     onlyChanges?: boolean;
     fields?: string[];
@@ -30,27 +34,31 @@ export interface ToBackendParams<T extends ModelData> {
 }
 
 export interface SaveParams<T extends ModelData> {
-    data?: T;
+    data?: T & { [x: string]: any; };
     mapData?: (x: Partial<T>) => any;
 
     onlyChanges?: boolean;
     fields?: string[];
 
     url?: string;
+
+    [x: string]: any;
 }
 
 export interface SaveAllParams<T extends ModelData> extends SaveParams<T> {
     relations?: string[];
 }
 
-export interface NestedRelations {
-    [nested: string]: NestedRelations
+export interface NestedStrings {
+    [nested: string]: NestedStrings;
 }
 
-export interface ToBackendAllParams<T extends ModelData> {
+export type NestedRelations = NestedStrings;
+
+export interface ToBackendAllParams<T extends ModelData, R> {
     data?: T;
-    mapData?: (x: Partial<T>) => any;
-    nestedRelations: NestedRelations;
+    mapData?: (x: Partial<T>) => R;
+    nestedRelations?: NestedRelations;
 
     onlyChanges?: boolean;
 }
@@ -62,12 +70,8 @@ export interface ModelOptions<T> {
 
 type StoreOrModelConstructor = (new () => Model<any>) | (new () => Store<any, any>);
 
-export class Model<T extends ModelData> {
-    /**
-     * The primary key of the model. The default value is 'id'.
-     */
-    static primaryKey: string = 'id';
-
+export abstract class Model<T extends ModelData> {
+    
     /**
      * How the model is known at the backend. This is useful when the model is in a
      * relation that has a different name.
@@ -280,7 +284,7 @@ export class Model<T extends ModelData> {
         return output;
     }
 
-    saveFile(name) {
+    saveFile(name: string): Promise<any> {
         const snakeName = camelToSnake(name);
 
         if (this.__fileChanges[name]) {
@@ -327,7 +331,7 @@ export class Model<T extends ModelData> {
         return this.fromBackend(res);
     }
 
-    saveFiles() {
+    saveFiles(): Promise<any[]> {
         return Promise.all(
             this.fileFields()
             .filter(this.fieldFilter)
@@ -368,7 +372,7 @@ export class Model<T extends ModelData> {
         return this.__pendingRequestCount > 0;
     }
 
-    saveAllFiles(relations = {}) {
+    saveAllFiles(relations: NestedRelations = {}) {
         const promises = [this.saveFiles()];
         for (const rel of Object.keys(relations)) {
             promises.push(this[rel].saveAllFiles(relations[rel]));
@@ -467,11 +471,9 @@ export class Model<T extends ModelData> {
 
     @action
     setInput(name: string, value: any) {
-        invariant(
-            this.__attributes.includes(name) ||
-                this.__activeCurrentRelations.includes(name),
-            `Field \`${name}\` does not exist on the model.`
-        );
+        if (!this.__attributes.includes(name) && !this.__activeCurrentRelations.includes(name)) {
+            throw new Error(`[mobx-spine] Field '${name}' doesn't exist on the model.`);
+        }
         if (this.fileFields().includes(name)) {
             if (this.__fileExists[name] === undefined) {
                 this.__fileExists[name] = this[name] !== null;
@@ -513,13 +515,12 @@ export class Model<T extends ModelData> {
         }
     }
 
-    toBackend(params?: ToBackendParams<T> | undefined) {
+    toBackend<R>(params?: ToBackendParams<T, R> | undefined): R | T {
         if (params === undefined) {
             params = {};
         }
 
         const data = params.data || {};
-        const mapData = params.mapData || ((x: any) => x);
 
         const output: Partial<T> = {};
         // By default we'll include all fields (attributes+relations), but sometimes you might want to specify the fields to be included.
@@ -553,7 +554,8 @@ export class Model<T extends ModelData> {
         });
 
         // Primary key is always forced to be included.
-        output[this.constructor['primaryKey']] = this[this.constructor['primaryKey']];
+        // @ts-ignore
+        output.id = this.id;
 
         // Add active relations as id.
         this.__activeCurrentRelations
@@ -564,15 +566,20 @@ export class Model<T extends ModelData> {
                     currentRel
                 );
                 if (rel instanceof Model) {
-                    output[relBackendName] = rel[rel.constructor['primaryKey']];
+                    // @ts-ignore
+                    output[relBackendName] = rel.id;
                 }
                 if (rel instanceof Store) {
-                    output[relBackendName] = rel['mapByPrimaryKey']();
+                    output[relBackendName] = rel.mapByPrimaryKey();
                 }
             });
 
         Object.assign(output, data);
-        return mapData(output);
+        if (params.mapData) {
+            return params.mapData(output);
+        } else {
+            return output as T;
+        }
     }
 
     // Useful to reference to this model in a relation - that is not yet saved to the backend.
@@ -584,18 +591,21 @@ export class Model<T extends ModelData> {
         if (this.isNew) {
             return this.getNegativeId();
         }
-        return this[this.constructor['primaryKey']];
+        // @ts-ignore
+        return this.id;
     }
 
     __getApi() {
-        invariant(
-            this.api,
-            'You are trying to perform a API request without an `api` property defined on the model.'
-        );
-        invariant(
-            result(this, 'urlRoot'),
-            'You are trying to perform a API request without an `urlRoot` property defined on the model.'
-        );
+        if (!this.api) {
+            throw new Error(
+                '[mobx-spine] You are trying to perform an API request without an `api` property defined on the model.'
+            );
+        }
+        if (!result(this, 'urlRoot')) {
+            throw new Error(
+                'You are trying to perform an API request without a `urlRoot` property defined on the model.'
+            );
+        }
         return this.api;
     }
 
@@ -635,8 +645,10 @@ export class Model<T extends ModelData> {
     }
 
     @action
-    fetch(options: { url?: string, data?: any } = {}) {
-        invariant(!this.isNew, 'Trying to fetch model without id!');
+    fetch(options: { url?: string, data?: any, [x: string]: any } = {}) {
+        if (this.isNew) {
+            throw new Error('[mobx-spine] Trying to fetch a model without an id');
+        }
 
         const data = this.buildFetchData(options);
         const promise = this.wrapPendingRequestCount(
@@ -670,7 +682,7 @@ export class Model<T extends ModelData> {
     }
 
     @action
-    parseValidationErrors(valErrors) {
+    parseValidationErrors(valErrors: object) {
         const bname = this.constructor['backendResourceName'];
 
         if (valErrors[bname]) {
@@ -679,7 +691,7 @@ export class Model<T extends ModelData> {
             const errorsForModel =
                 valErrors[bname][id] || valErrors[bname]['null'];
             if (errorsForModel) {
-                const camelCasedErrors = mapKeys(errorsForModel, (value, key) =>
+                const camelCasedErrors = mapKeys(errorsForModel, (_value: string, key: string) =>
                     snakeToCamel(key)
                 );
                 const formattedErrors = mapValues(
@@ -697,7 +709,7 @@ export class Model<T extends ModelData> {
         });
     }
 
-    toBackendAll(options?: ToBackendAllParams<T>) {
+    toBackendAll<R>(options?: ToBackendAllParams<T, R>) {
         const nestedRelations = options.nestedRelations || {};
         const data = this.toBackend({
             data: options.data,
@@ -705,8 +717,8 @@ export class Model<T extends ModelData> {
             onlyChanges: options.onlyChanges,
         });
 
-        if (data[this.constructor['primaryKey']] === null) {
-            data[this.constructor['primaryKey']] = this.getNegativeId();
+        if (data.id === null) {
+            data.id = this.getNegativeId();
         }
 
         const relations = {};
@@ -742,12 +754,11 @@ export class Model<T extends ModelData> {
                 if (relBackendData.data.length > 0) {
                     concatInDict(relations, realBackendName, relBackendData.data);
 
-                    // De-duplicate relations based on `primaryKey`.
+                    // De-duplicate relations based on id
                     // TODO: Avoid serializing recursively multiple times in the first place?
                     // TODO: What if different relations have different "freshness"?
                     relations[realBackendName] = uniqBy(
-                        relations[realBackendName],
-                        rel.constructor.primaryKey || rel.Model.primaryKey
+                        relations[realBackendName], 'id'
                     );
                 }
 
@@ -768,6 +779,7 @@ export class Model<T extends ModelData> {
      * @param activeRelations
      * @protected
      */
+    @action
     protected __parseRelations(activeRelations: string[]) {
         this.__activeRelations = activeRelations;
 
@@ -827,12 +839,14 @@ export class Model<T extends ModelData> {
 
     @computed
     get isNew(): boolean {
-        return !this[this.constructor['primaryKey']];
+        // @ts-ignore
+        return !this.id;
     }
 
     @computed
     get url(): string {
-        const id = this[this.constructor['primaryKey']];
+        // @ts-ignore
+        const id = this.id;
         return `${result(this, 'urlRoot')}${id ? `${id}/` : ''}`;
     }
 
@@ -863,12 +877,6 @@ export class Model<T extends ModelData> {
      */
     static fromBackendAttrKey(attrKey: string): string {
         return snakeToCamel(attrKey);
-    }
-
-    set primaryKey(v: any) {
-        throw Error(
-            '`primaryKey` should be a static property on the model.'
-        );
     }
 
     set backendResourceName(v: any) {
