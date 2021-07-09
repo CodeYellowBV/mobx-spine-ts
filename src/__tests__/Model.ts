@@ -495,6 +495,7 @@ test('toBackend with relations', () => {
 });
 
 test('toBackend with pick fields', () => {
+    @tsPatch
     class TestModel extends Model<NameColorModelData> {
         api = new BinderApi();
         static backendResourceName = 'resource';
@@ -520,6 +521,7 @@ test('toBackend with pick fields', () => {
 });
 
 test('toBackend with pick fields as static attribute', () => {
+    @tsPatch
     class TestModel extends Model<NameColorModelData> {
         api = new BinderApi();
         static backendResourceName = 'resource';
@@ -539,6 +541,7 @@ test('toBackend with pick fields as static attribute', () => {
 });
 
 test('toBackend with pick fields arrow function', () => {
+    @tsPatch
     class TestModel extends Model<NameColorModelData> {
         api = new BinderApi();
         static backendResourceName = 'resource';
@@ -560,6 +563,7 @@ test('toBackend with pick fields arrow function', () => {
 
 
 test('toBackend with omit fields', () => {
+    @tsPatch
     class TestModel extends Model<NCWHModelData> {
         api = new BinderApi();
         static backendResourceName = 'resource';
@@ -585,6 +589,7 @@ test('toBackend with omit fields', () => {
 });
 
 test('toBackend with omit fields as static attribute', () => {
+    @tsPatch
     class TestModel extends Model<NCWHModelData> {
         api = new BinderApi();
         static backendResourceName = 'resource';
@@ -607,6 +612,7 @@ test('toBackend with omit fields as static attribute', () => {
 });
 
 test('toBackend with omit fields as arrow function', () => {
+    @tsPatch
     class TestModel extends Model<NCWHModelData> {
         api = new BinderApi();
         static backendResourceName = 'resource';
@@ -984,7 +990,7 @@ test('toJS with observable array', () => {
 
 test('fetch without id', () => {
     const animal = new Animal();
-    expect(() => animal.fetch()).toThrow('Trying to fetch model without id!');
+    expect(() => animal.fetch()).toThrow('[mobx-spine] Trying to fetch a model without an id');
 });
 
 test('delete without id and store', () => {
@@ -995,14 +1001,14 @@ test('delete without id and store', () => {
 test('fetch without api', () => {
     const animal = new AnimalWithoutApi({ id: 2 });
     expect(() => animal.fetch()).toThrow(
-        'You are trying to perform a API request without an `api` property defined on the model.'
+        '[mobx-spine] You are trying to perform an API request without an `api` property defined on the model.'
     );
 });
 
 test('fetch without url', () => {
     const animal = new AnimalWithoutUrl({ id: 2 });
     expect(() => animal.fetch()).toThrow(
-        'You are trying to perform a API request without an `urlRoot` property defined on the model.'
+        'You are trying to perform an API request without a `urlRoot` property defined on the model.'
     );
 });
 
@@ -1040,7 +1046,7 @@ test('setInput on non-existing field', () => {
     const animal = new Animal();
     expect(() => {
         return animal.setInput('asdf', 'Jo');
-    }).toThrow('Field `asdf` does not exist on the model.');
+    }).toThrow("[mobx-spine] Field 'asdf' doesn't exist on the model.");
 });
 
 test('setInput to parse model relation', () => {
@@ -1170,6 +1176,7 @@ describe('requests', () => {
     });
 
     test('fetch with custom buildFetchData', () => {
+        @tsPatch
         class TestModel extends Model<ModelData> {
             api = new BinderApi();
             static backendResourceName = 'resource';
@@ -1200,6 +1207,7 @@ describe('requests', () => {
         const myApi = new BinderApi();
         mock.onAny().replyOnce(200, {});
         const spy = jest.spyOn(myApi, 'get');
+        @tsPatch
         class Zebra extends Model<ModelData> {
             static backendResourceName = 'zebra';
             api = myApi;
