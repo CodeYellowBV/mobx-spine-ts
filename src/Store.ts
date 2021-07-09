@@ -91,7 +91,8 @@ export class Store<T extends ModelData, U extends Model<T>> {
     // Create a new instance of this store with a predicate applied.
     // This new store will be automatically kept in-sync with all models that adhere to the predicate.
     virtualStore({ filter, comparator }) {
-        const store = new this.constructor({
+        // @ts-ignore
+        const store: this = new this.constructor({
             relations: this.__activeRelations,
             comparator,
         });
@@ -107,9 +108,23 @@ export class Store<T extends ModelData, U extends Model<T>> {
             store.__pendingRequestCount = this.__pendingRequestCount;
         });
 
-        store.unsubscribeVirtualStore = events;
+        store['unsubscribeVirtualStore'] = events;
 
         return store;
+    }
+
+    __parseNewIds(idMaps: { [x: string]: number[][] }) {
+        this.each(model => model.__parseNewIds(idMaps));
+    }
+
+    @action
+    clear() {
+        const length = this.models.length;
+        this.models.clear();
+
+        if (length > 0) {
+            this.__setChanged = true;
+        }
     }
 
     @action
