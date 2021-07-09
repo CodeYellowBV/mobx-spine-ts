@@ -5,7 +5,7 @@ import {
 import { camelToSnake, snakeToCamel, forNestedRelations, relationsToNestedKeys } from "./Utils";
 import {
     forIn, uniqueId, result, mapValues, isPlainObject, isArray, 
-    uniq, uniqBy, get, omit, mapKeys
+    uniq, uniqBy, get, omit, mapKeys, each
 } from 'lodash'
 import {Store} from "./Store";
 import baseFromBackend from "./Model/FromBackend";
@@ -24,9 +24,9 @@ export interface ModelData {
     id?: number
 }
 
-export interface ToBackendParams<T extends ModelData, R> {
+export interface ToBackendParams<T extends ModelData> {
     data?: T;
-    mapData?: (x: Partial<T>) => R;
+    mapData?: (x: Partial<T>) => Partial<T>;
 
     onlyChanges?: boolean;
     fields?: string[];
@@ -55,9 +55,9 @@ export interface NestedStrings {
 
 export type NestedRelations = NestedStrings;
 
-export interface ToBackendAllParams<T extends ModelData, R> {
+export interface ToBackendAllParams<T extends ModelData> {
     data?: T;
-    mapData?: (x: Partial<T>) => R;
+    mapData?: (x: Partial<T>) => Partial<T>;
     nestedRelations?: NestedRelations;
 
     onlyChanges?: boolean;
@@ -172,7 +172,7 @@ export abstract class Model<T extends ModelData> {
         this.__fetchParams = Object.assign({}, params);
     }
 
-    wrapPendingRequestCount(promise) {
+    wrapPendingRequestCount<T>(promise: Promise<T>): Promise<T> {
         this.__pendingRequestCount++;
 
         return promise
@@ -328,6 +328,7 @@ export abstract class Model<T extends ModelData> {
     // This is just a pass-through to make it easier to override parsing backend responses from the backend.
     // Sometimes the backend won't return the model after a save because e.g. it is created async.
     saveFromBackend(res) {
+        console.log('res is', res);
         return this.fromBackend(res);
     }
 
@@ -381,7 +382,7 @@ export abstract class Model<T extends ModelData> {
     }
 
     @action
-    saveAll(options: SaveAllParams<T> = {}) {
+    saveAll(options: SaveAllParams<T> = {}): Promise<object> {
         this.clearValidationErrors();
         return this.wrapPendingRequestCount(
             this.__getApi()
@@ -429,6 +430,25 @@ export abstract class Model<T extends ModelData> {
                 })
             )
         );
+    }
+
+    // After saving a model, we should get back an ID mapping from the backend which looks like:
+    // `{ "animal": [[-1, 10]] }`
+    __parseNewIds(idMaps: { [x: string]: number[][]}) {
+        const bName = this.constructor['backendResourceName'];
+        if (bName && idMaps[bName]) {
+            const idMap = idMaps[bName].find(
+                ids => ids[0] === this.getInternalId()
+            );
+            if (idMap) {
+                // @ts-ignore
+                this.id = idMap[1];
+            }
+        }
+        each(this.__activeCurrentRelations, relName => {
+            const rel = this[relName];
+            rel.__parseNewIds(idMaps);
+        });
     }
 
     @action
@@ -515,7 +535,7 @@ export abstract class Model<T extends ModelData> {
         }
     }
 
-    toBackend<R>(params?: ToBackendParams<T, R> | undefined): R | T {
+    toBackend(params?: ToBackendParams<T> | undefined): Partial<T> {
         if (params === undefined) {
             params = {};
         }
@@ -709,7 +729,7 @@ export abstract class Model<T extends ModelData> {
         });
     }
 
-    toBackendAll<R>(options?: ToBackendAllParams<T, R>) {
+    toBackendAll(options: ToBackendAllParams<T> = {}): { data: Partial<T>[], relations: object } {
         const nestedRelations = options.nestedRelations || {};
         const data = this.toBackend({
             data: options.data,
