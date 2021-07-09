@@ -125,6 +125,7 @@ interface AnimalArrayData {
 }
 
 // I have no creativity left after 17h, sorry. Also ssssh.
+@tsPatch
 export class AnimalWithArray extends Model<AnimalArrayData> {
     @observable foo = [];
 }
@@ -133,6 +134,7 @@ interface AnimalObjectData {
     id?: number;
     foo?: object;
 }
+@tsPatch
 export class AnimalWithObject extends Model<AnimalObjectData> {
     @observable foo: object = {};
 }
@@ -141,11 +143,13 @@ interface AnimalFrontendData {
     id?: number;
     _frontend?: string;
 }
+@tsPatch
 export class AnimalWithFrontendProp extends Model<AnimalFrontendData> {
     @observable id = null;
     @observable _frontend = null;
 }
 
+@tsPatch
 export class AnimalWithoutApi extends Model<{ id?: number}> {
     @observable id = null;
 }
@@ -154,6 +158,7 @@ export class AnimalStoreWithoutApi extends Store<AnimalData, Animal> {
     Model = Animal;
 }
 
+@tsPatch
 export class AnimalWithoutUrl extends Model<{ id?: number }> {
     api = new BinderApi();
     @observable id = null;
@@ -185,6 +190,7 @@ type KindResourceData = {
     id?: number
 }
 
+@tsPatch
 export class KindResourceName extends Model<KindResourceData> {
     api = new BinderApi();
     static backendResourceName = 'kind';
