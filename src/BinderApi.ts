@@ -1,26 +1,14 @@
+import Api, { FetchResponse, GetResponse, PutResponse, RequestData, RequestOptions } from 'Api';
 import axios, {AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse, Method} from 'axios';
 import {get} from 'lodash';
-import { Model } from './Model';
-
-interface RequestOptions {
-    // If true, returns the whole axios response. Otherwise, parse the response data,
-    skipRequestError?: Boolean;
-    skipFormatter?: boolean;
-    params?: RequestData;
-    headers?: any;
-}
-
-interface RequestData {
-
-}
+import { Model, ModelData } from './Model';
 
 function csrfSafeMethod(method: Method) {
     // These HTTP methods do not require CSRF protection.
     return /^(GET|HEAD|OPTIONS|TRACE)$/i.test(method);
 }
 
-
-export class BinderApi {
+export class BinderApi implements Api {
     axios: AxiosInstance = axios.create();
     defaultHeaders: any = {}
     baseUrl?: string = null;
@@ -54,7 +42,9 @@ export class BinderApi {
 
     public fetchCsrfToken() {
         return this.get('/api/bootstrap/').then(res => {
-            this.csrfToken = (res as BootstrapResponse).csrf_token;
+            // This conversion is dirty because the BootstrapResponse is a
+            // ... special get response
+            this.csrfToken = (res as any as BootstrapResponse).csrf_token;
         });
     }
 
@@ -77,7 +67,7 @@ export class BinderApi {
      * @param data
      * @param options
      */
-    protected __request(method: Method, url: string, data?: RequestData, options?: RequestOptions): Promise<object> {
+    protected __request(method: Method, url: string, data?: RequestData, options?: RequestOptions): Promise<any> {
 
         if (!options) {
             options = {};
@@ -193,7 +183,18 @@ export class BinderApi {
         }
     }
 
-    saveModel({ url, data, isNew, requestOptions }) {
+    fetchModel<T extends ModelData>({ url, data, requestOptions }): Promise<FetchResponse<T>> {
+        return this.get<T>(url, data, requestOptions).then(res => {
+            return {
+                data: res.data as T,
+                repos: res.with,
+                relMapping: res.with_mapping,
+                reverseRelMapping: res.with_related_name_mapping,
+            };
+        });
+    }
+
+    saveModel({ url, data, isNew, requestOptions }): Promise<any> {
         const method = isNew ? 'post' : 'patch';
         return this[method](url, data, requestOptions)
             .then(newData => {
@@ -209,7 +210,7 @@ export class BinderApi {
             });
     }
 
-    saveAllModels({ url, data, model, requestOptions }) {
+    saveAllModels({ url, data, model, requestOptions }): Promise<PutResponse> {
         return this.put(
             url,
             {
@@ -234,27 +235,27 @@ export class BinderApi {
             });
     }
 
-    public get(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+    public get<T>(url: string, data?: RequestData, options ?: RequestOptions): Promise<GetResponse<T>> {
         return this.__request('get', url, data, options);
     }
 
-    public post(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+    public post<T>(url: string, data?: RequestData, options ?: RequestOptions): Promise<T> {
         return this.__request('post', url, data, options);
     }
 
-    public put(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+    public put(url: string, data?: RequestData, options ?: RequestOptions): Promise<PutResponse> {
         return this.__request('put', url, data, options);
     }
 
-    public patch(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+    public patch<T>(url: string, data?: RequestData, options ?: RequestOptions): Promise<T> {
         return this.__request('patch', url, data, options);
     }
 
-    public delete(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+    public delete(url: string, data?: RequestData, options ?: RequestOptions): Promise<void> {
         return this.__request('delete', url, data, options);
     }
 
-    deleteModel(options: { url: string, requestOptions: RequestOptions }) {
+    deleteModel(options: { url: string, requestOptions: RequestOptions }): Promise<void> {
         // TODO: kind of silly now, but we'll probably want better error handling soon.
         return this.delete(options.url, null, options.requestOptions);
     }
