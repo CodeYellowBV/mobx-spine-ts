@@ -84,7 +84,7 @@ You can do put request using:
 ```put(url: string, data?: RequestData, options ?: RequestOptions):  Promise<object>```
 
 ### PATCH request
-You can do put request using: 
+You can do patch request using: 
 
 ```patch(url: string, data?: RequestData, options ?: RequestOptions):  Promise<object>```
 
