@@ -64,6 +64,10 @@ export class Store<T extends ModelData, U extends Model<T>> {
         return this.models.length;
     }
 
+    clearSetChanges(): void {
+        this.__setChanged = false;
+    }
+
     map<V>(mapping: (model: Model<T>) => V): V[] {
         return map(this.models, mapping);
     }
