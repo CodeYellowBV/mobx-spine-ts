@@ -184,7 +184,9 @@ export class BinderApi implements Api {
     }
 
     fetchModel<T extends ModelData>({ url, data, requestOptions }): Promise<FetchResponse<T>> {
-        return this.get<T>(url, data, requestOptions).then(res => {
+        return this.get<T>(url, data, requestOptions).then((rawRes: GetResponse<T> | AxiosResponse) => {
+            // This will go wrong if requestOptions contains skipFormatter
+            const res = rawRes as GetResponse<T>;
             return {
                 data: res.data as T,
                 repos: res.with,
@@ -194,11 +196,12 @@ export class BinderApi implements Api {
         });
     }
 
-    saveModel({ url, data, isNew, requestOptions }): Promise<any> {
+    saveModel<T extends ModelData>({ url, data, isNew, requestOptions }): Promise<{ data: T }> {
         const method = isNew ? 'post' : 'patch';
         return this[method](url, data, requestOptions)
-            .then(newData => {
-                return { data: newData };
+            .then((newData: T | AxiosResponse) => {
+                // This won't go well if the skipFormatter parameter is used
+                return { data: newData as T};
             })
             .catch(err => {
                 if (err.response) {
@@ -210,7 +213,7 @@ export class BinderApi implements Api {
             });
     }
 
-    saveAllModels<T extends ModelData>(params: { url: string, data: any, model: Model<T>, requestOptions: RequestOptions }): Promise<PutResponse> {
+    saveAllModels<T extends ModelData>(params: { url: string, data: any, model: Model<T>, requestOptions: RequestOptions }): Promise<PutResponse | AxiosResponse> {
         return this.put(
             params.url,
             {
@@ -219,7 +222,7 @@ export class BinderApi implements Api {
             },
             params.requestOptions
         )
-            .then(res => {
+            .then((res: PutResponse | AxiosResponse) => {
                 if (res['idmap']) {
                     params.model.__parseNewIds(res['idmap']);
                 }
@@ -235,27 +238,27 @@ export class BinderApi implements Api {
             });
     }
 
-    public get<T>(url: string, data?: RequestData, options ?: RequestOptions): Promise<GetResponse<T>> {
+    public get<T>(url: string, data?: RequestData, options ?: RequestOptions): Promise<GetResponse<T>> | Promise<AxiosResponse> {
         return this.__request('get', url, data, options);
     }
 
-    public post<T>(url: string, data?: RequestData, options ?: RequestOptions): Promise<T> {
+    public post<T>(url: string, data?: RequestData, options ?: RequestOptions): Promise<T> | Promise<AxiosResponse> {
         return this.__request('post', url, data, options);
     }
 
-    public put(url: string, data?: RequestData, options ?: RequestOptions): Promise<PutResponse> {
+    public put(url: string, data?: RequestData, options ?: RequestOptions): Promise<PutResponse> | Promise<AxiosResponse> {
         return this.__request('put', url, data, options);
     }
 
-    public patch<T>(url: string, data?: RequestData, options ?: RequestOptions): Promise<T> {
+    public patch<T>(url: string, data?: RequestData, options ?: RequestOptions): Promise<T> | Promise<AxiosResponse> {
         return this.__request('patch', url, data, options);
     }
 
-    public delete(url: string, data?: RequestData, options ?: RequestOptions): Promise<void> {
+    public delete(url: string, data?: RequestData, options ?: RequestOptions): Promise<void> | Promise<AxiosResponse> {
         return this.__request('delete', url, data, options);
     }
 
-    deleteModel(options: { url: string, requestOptions: RequestOptions }): Promise<void> {
+    deleteModel(options: { url: string, requestOptions: RequestOptions }): Promise<void> | Promise<AxiosResponse> {
         // TODO: kind of silly now, but we'll probably want better error handling soon.
         return this.delete(options.url, null, options.requestOptions);
     }

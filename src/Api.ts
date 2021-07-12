@@ -1,18 +1,19 @@
+import { AxiosResponse } from "axios";
 import { Model, ModelData } from "Model";
 
 export default interface Api {
-	get<T extends ModelData>(url: string, data?: RequestData, options?: RequestOptions): Promise<GetResponse<T>>;
-    post<T extends ModelData>(url: string, data?: RequestData, options?: RequestOptions): Promise<T>;
-    put(url: string, data?: RequestData, options?: RequestOptions): Promise<PutResponse>;
-    patch<T extends ModelData>(url: string, data?: RequestData, options?: RequestOptions): Promise<T>;
-    delete(url: string, data?: RequestData, options?: RequestOptions): Promise<void>;
+	get<T extends ModelData>(url: string, data?: RequestData, options?: RequestOptions): Promise<GetResponse<T>> | Promise<AxiosResponse>;
+    post<T extends ModelData>(url: string, data?: RequestData, options?: RequestOptions): Promise<T> | Promise<AxiosResponse>;
+    put(url: string, data?: RequestData, options?: RequestOptions): Promise<PutResponse> | Promise<AxiosResponse>;
+    patch<T extends ModelData>(url: string, data?: RequestData, options?: RequestOptions): Promise<T> | Promise<AxiosResponse>;
+    delete(url: string, data?: RequestData, options?: RequestOptions): Promise<void> | Promise<AxiosResponse>;
 
     fetchModel<T extends ModelData>(params: { url: string, data?: RequestData, requestOptions?: RequestOptions }): Promise<FetchResponse<T>>;
+
     saveModel<T extends ModelData>(params: { url: string, data?: RequestData, isNew?: boolean, requestOptions?: RequestOptions }): Promise<{ data: T }>;
+    saveAllModels<T extends ModelData>(params: { url: string, data?: RequestData, model: Model<T>, requestOptions?: RequestOptions }): Promise<PutResponse | AxiosResponse>;
 
-    saveAllModels<T extends ModelData>(params: { url: string, data?: RequestData, model: Model<T>, requestOptions?: RequestOptions }): Promise<PutResponse>;
-
-    deleteModel(params: { url: string, requestOptions?: RequestOptions }): Promise<void>;
+    deleteModel(params: { url: string, requestOptions?: RequestOptions }): Promise<void> | Promise<AxiosResponse>;
 }
 
 export interface FetchResponse<T> {
