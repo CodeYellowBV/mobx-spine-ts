@@ -25,7 +25,7 @@ export class Store<T extends ModelData, U extends Model<T>> {
 
     Model: (new (data?: T, options?: ModelOptions<T>) => Model<T>) = null;
 
-    public constructor(data?: T[], options?: StoreOptions<T>) {
+    public constructor(options?: StoreOptions<T>) {
         this.__activeRelations = options?.relations || [];
     }
 

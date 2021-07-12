@@ -28,6 +28,9 @@ export default function fromBackend<T>(this: Model<T>, input: ResponseAdapter<T>
  */
 function parseFromBackendRelations<T>(this: Model<T>, response: Response<T>): void {
     const relationTree = createRelationTree(this.__activeRelations);
+    if (!response.data) {
+        return;
+    }
 
     for (const relationName in relationTree) {
         const relations = this.relations();
