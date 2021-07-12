@@ -64,6 +64,18 @@ export class Store<T extends ModelData, U extends Model<T>> {
         return this.models.length;
     }
 
+    @computed
+    get hasUserChanges() {
+        return this.hasSetChanges || this.models.some(m => m.hasUserChanges);
+    }
+
+    // TODO: Maybe we can keep track of what got added and what got
+    // removed exactly.  For now this should be enough.
+    @computed
+    get hasSetChanges() {
+        return this.__setChanged;
+    }
+
     clearSetChanges(): void {
         this.__setChanged = false;
     }
