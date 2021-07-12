@@ -9,6 +9,7 @@ import {
 } from 'lodash'
 import {Store} from "./Store";
 import baseFromBackend from "./Model/FromBackend";
+import Api from 'Api';
 
 function concatInDict(dict: object, key: string, value: any) {
     dict[key] = dict[key] ? dict[key].concat(value) : value;
@@ -83,7 +84,7 @@ export abstract class Model<T extends ModelData> {
     static omitFields: string[] = [];
 
     cid: string = uniqueId('m');
-    api = null;
+    api: Api = null;
 
     // A list of all attributes of this model
     __attributes: string[] = [];
@@ -328,7 +329,6 @@ export abstract class Model<T extends ModelData> {
     // This is just a pass-through to make it easier to override parsing backend responses from the backend.
     // Sometimes the backend won't return the model after a save because e.g. it is created async.
     saveFromBackend(res) {
-        console.log('res is', res);
         return this.fromBackend(res);
     }
 
@@ -615,7 +615,7 @@ export abstract class Model<T extends ModelData> {
         return this.id;
     }
 
-    __getApi() {
+    __getApi(): Api {
         if (!this.api) {
             throw new Error(
                 '[mobx-spine] You are trying to perform an API request without an `api` property defined on the model.'
