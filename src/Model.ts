@@ -217,13 +217,12 @@ export abstract class Model<T extends ModelData> {
             } else if (this.__activeCurrentRelations.includes(key)) {
 
                 // Parse the relations
-                if (isPlainObject(value) || isPlainObject(get(value, '[0]'))) {
+                if (isPlainObject(value) || (isArray(value) && (isPlainObject(get(value, '[0]')) || value['length'] === 0))) {
                     this[attr].parse(value);
                 } else if (value === null) {
                     // The relation is cleared.
                     this[attr].clear();
                 }
-
             } else {
                 console.warn(`Object has no attribute ${attr}. This value is ignored in the bootstrap`)
             }
