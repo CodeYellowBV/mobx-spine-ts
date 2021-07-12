@@ -1640,6 +1640,7 @@ describe('requests', () => {
 
         // @ts-ignore
         animal.kind.breed.setInput('name', 'Katachtige');
+        expect(animal.hasUserChanges).toBe(true);
 
         mock.onAny().replyOnce(() => {
             return [200, {}];
