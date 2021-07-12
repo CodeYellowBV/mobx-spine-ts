@@ -210,18 +210,18 @@ export class BinderApi implements Api {
             });
     }
 
-    saveAllModels({ url, data, model, requestOptions }): Promise<PutResponse> {
+    saveAllModels<T extends ModelData>(params: { url: string, data: any, model: Model<T>, requestOptions: RequestOptions }): Promise<PutResponse> {
         return this.put(
-            url,
+            params.url,
             {
-                data: data.data,
-                with: data.relations,
+                data: params.data.data,
+                with: params.data.relations,
             },
-            requestOptions
+            params.requestOptions
         )
             .then(res => {
                 if (res['idmap']) {
-                    model.__parseNewIds(res['idmap']);
+                    params.model.__parseNewIds(res['idmap']);
                 }
                 return res;
             })
