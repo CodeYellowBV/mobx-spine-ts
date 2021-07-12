@@ -135,7 +135,12 @@ function filterActiveRelations(parentActiveRelations: string[], relation: string
 function parseOneToRelations<T>(this: Model<T>, response: Response<T>, relationName: string): void {
     const backendRelationName = this.constructor['toBackendAttrKey'](relationName);
     // The primary key of the relation
-    const relationDataRaw: number | object | null = response.data[backendRelationName]
+    const relationDataRaw: number | object | null = response.data[backendRelationName];
+
+    // Case 0?: The relation is not given in the response. Just ignore it.
+    if (relationDataRaw === undefined) {
+        return;
+    }
 
     // Case 1: The relation is None. Then, we set the relation to a new object without a pk
     // e.g. {foo: null} => this.foo = new Foo();
