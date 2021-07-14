@@ -1,6 +1,5 @@
 import moment from 'moment';
 import { DateTime } from 'luxon';
-import { isArray } from 'lodash';
 
 /**
  * `Cast`s are used to automagically (de)serialize some properties of `Model`s. This is
@@ -58,7 +57,7 @@ function checkLuxonDateTime(attr, value) {
 const LUXON_DATE_FORMAT = 'yyyy-LL-dd';
 const LUXON_DATETIME_FORMAT = "yyyy'-'LL'-'dd'T'HH':'mm':'ssZZ";
 
-class Casts {
+class CastsClass {
     momentDate: Cast<moment.Moment> = {
         parse(_attr, value) {
             if (value === null || value === undefined) {
@@ -130,10 +129,10 @@ class Casts {
 
     date: Cast<DateTime | moment.Moment> = {
         parse(...args) {
-            return CASTS[`${DATE_LIB}Date`].parse(...args);
+            return Casts[`${DATE_LIB}Date`].parse(...args);
         },
         toJS(...args) {
-            return CASTS[`${DATE_LIB}Date`].toJS(...args);
+            return Casts[`${DATE_LIB}Date`].toJS(...args);
         },
         get dateLib() {
             return DATE_LIB;
@@ -142,10 +141,10 @@ class Casts {
 
     datetime: Cast<DateTime | moment.Moment> = {
         parse(...args) {
-            return CASTS[`${DATE_LIB}Datetime`].parse(...args);
+            return Casts[`${DATE_LIB}Datetime`].parse(...args);
         },
         toJS(...args) {
-            return CASTS[`${DATE_LIB}Datetime`].toJS(...args);
+            return Casts[`${DATE_LIB}Datetime`].toJS(...args);
         },
         get dateLib() {
             return DATE_LIB;
@@ -159,9 +158,8 @@ class Casts {
             } else if (expectedValues.includes(value)) {
                 return value;
             } else {
-                throw new Error(`
-                Value set to attribute '${attr}' ${JSON.stringify(value)}', is not
-                one of the allowed enum: ${JSON.stringify(expectedValues)}.`
+                throw new Error(
+                    `Value set to attribute '${attr}', ${JSON.stringify(value)}, is not one of the allowed enum: ${JSON.stringify(expectedValues)}`
                 );
             }
         }
@@ -176,6 +174,4 @@ class Casts {
  * The `Cast`s provided by mobx-spine. See the documentation of `Cast` for more
  * information. Applications are free to create and use their own casts.
  */
-const CASTS: Casts = new Casts();
-
-export default CASTS;
+export const Casts: CastsClass = new CastsClass();
