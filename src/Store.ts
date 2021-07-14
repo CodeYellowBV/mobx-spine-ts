@@ -5,7 +5,7 @@ import { map, isArray, sortBy, filter, find, forIn, uniqBy, result, omit } from 
 import { BinderApi } from "BinderApi";
 import { FetchStoreOptions, GetResponse } from "Api";
 
-export interface StoreOptions<T> {
+export interface StoreOptions<U> {
     /**
      * List of active relations for this store
      */
@@ -19,7 +19,7 @@ export interface StoreOptions<T> {
     /**
      * Used for sorting entries
      */
-    comparator?: string | ((o1: Model<T>, o2: Model<T>) => number);
+    comparator?: string | ((o1: U, o2: U) => number);
 
     /**
      * This property can be used to pass arbitrary options to store.params. These properties will
@@ -39,7 +39,7 @@ interface WorkAround {
 }
 
 export class Store<T extends ModelData, U extends Model<T>> implements WorkAround {
-    models: IObservableArray<Model<T>> = observable([]);
+    models: IObservableArray<U> = observable([]);
     __activeRelations: string[] = [];
     /**
      * I have no clue what this is for.
@@ -63,13 +63,13 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * function, the function will be called to decide which model is 'largest' for
      * each comparison that is needed during sorting.
      */
-    comparator: string | ((o1: Model<T>, o2: Model<T>) => number);
+    comparator: string | ((o1: U, o2: U) => number);
 
     api?: BinderApi = null;
 
-    Model: (new (data?: T, options?: ModelOptions<T>) => Model<T>) = null;
+    Model: (new (data?: T, options?: ModelOptions<T>) => U) = null;
 
-    public constructor(rawOptions?: StoreOptions<T>) {
+    public constructor(rawOptions?: StoreOptions<U>) {
 
         // Nasty work-around for TS2425
         // @ts-ignore
@@ -137,7 +137,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
         // Subclasses can override this
     }
 
-    protected _newModel(data?: T): Model<T> {
+    protected _newModel(data?: T): U {
         return new this.Model(data, {
             store: this,
             relations: this.__activeRelations
@@ -165,7 +165,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
         this.__setChanged = false;
     }
 
-    map<V>(mapping: (model: Model<T>) => V): V[] {
+    map<V>(mapping: (model: U) => V): V[] {
         return map(this.models, mapping);
     }
 
@@ -362,11 +362,11 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * returned.
      */
     @action
-    add(rawModels: T | Array<T>): Model<T> | Array<Model<T>> {
+    add(rawModels: T | Array<T>): U | Array<U> {
         const singular = !isArray(rawModels);
         const models = singular ? [rawModels as T] : (rawModels as Array<T>).slice();
 
-        const modelInstances: Array<Model<T>> = models.map(this._newModel.bind(this));
+        const modelInstances: Array<U> = models.map(this._newModel.bind(this));
 
         modelInstances.forEach(modelInstance => {
             const id = modelInstance['id'];
@@ -387,9 +387,9 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * Removes the given model(s) from this store and returns the removed model(s).
      */
     @action
-    remove(models: Model<T> | Array<Model<T>>) {
+    remove(models: U | Array<U>) {
         const singular = !isArray(models);
-        const modelArray = singular ? [models as Model<T>] : (models as Array<Model<T>>).slice();
+        const modelArray = singular ? [models as U] : (models as Array<U>).slice();
 
         modelArray.forEach(model => this.models.remove(model));
         if (modelArray.length > 0) {
@@ -456,7 +456,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * be sorted, or the name of the property by which the models will be sorted.
      * @returns A new *sorted* array containing the models in this store.
      */
-    sortBy(iteratees: string | ((model: Model<T>) => any)): Model<T>[] {
+    sortBy(iteratees: string | ((model: U) => any)): U[] {
         return sortBy(this.models, iteratees);
     }
 
@@ -465,7 +465,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      *
      * @param id
      */
-    get(id: number): Model<T> | null {
+    get(id: number): U | null {
         return this.models.find(
             // @ts-ignore
             model => model.id === id
@@ -477,7 +477,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * accurately, primary key value) is included in *ids* (the parameter).
      * @param ids The id's to search for
      */
-    getByIds(ids: number[]): Array<Model<T>> {
+    getByIds(ids: number[]): Array<U> {
         // @ts-ignore
         return this.models.filter(model => ids.includes(model.id));
     }
@@ -491,7 +491,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * Returns an array containing all models in this store for which the given
      * predicate returns true.
      */
-    filter(predicate: (model: Model<T>) => boolean): Array<Model<T>> {
+    filter(predicate: (model: U) => boolean): Array<U> {
         return filter(this.models, predicate);
     }
 
@@ -499,21 +499,21 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * Returns the first model for which the given predicate returns true, or
      * `undefined` if the predicate didn't return true for a single model.
      */
-    find(predicate: (model: Model<T>) => boolean): Model<T> | undefined {
+    find(predicate: (model: U) => boolean): U | undefined {
         return find(this.models, predicate);
     }
 
     /**
      * Calls the given `callbackFunction` for each model in this store.
      */
-    each(callbackFunction: (model: Model<T>, index: number, array: Array<Model<T>>) => void): void {
+    each(callbackFunction: (model: U, index: number, array: Array<U>) => void): void {
         this.models.forEach(callbackFunction);
     }
 
     /**
      * Calls the given `callbackFunction` for each model in this store.
      */
-    forEach(callbackFunction: (model: Model<T>, index: number, array: Array<Model<T>>) => void): void {
+    forEach(callbackFunction: (model: U, index: number, array: Array<U>) => void): void {
         this.models.forEach(callbackFunction);
     }
 
@@ -524,7 +524,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * This method also accepts a negative `index`: -1 yields the last model,
      * -2 yields the second-last model, ...
      */
-    at(index: number) : Model<T> | null {
+    at(index: number) : U | null {
         if (index < 0) {
             index += this.length;
         }
