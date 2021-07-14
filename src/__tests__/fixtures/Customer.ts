@@ -59,6 +59,7 @@ export class Location extends Model<LocationData> implements LocationData {
 
     relations() {
         return {
+            restaurants: RestaurantStore,
             bestCook: Cook,
         };
     }

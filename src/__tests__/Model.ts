@@ -454,7 +454,6 @@ test('Parsing Store -> Model -> Store relation', () => {
 });
 
 test('Parsing Model -> Model -> Store with a nullable fk', () => {
-    // TODO Fix this last failing test
     const customer = new Customer(null, {
         relations: ['town.restaurants']
     });
