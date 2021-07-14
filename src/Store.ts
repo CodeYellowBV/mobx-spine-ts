@@ -1,4 +1,4 @@
-import {Model, ModelData, ModelOptions, NestedRelations, ToBackendAllParams} from "Model";
+import {BackendData, Model, ModelData, ModelOptions, NestedRelations, ToBackendAllParams} from "Model";
 import {action, computed, IObservableArray, observable, autorun } from "mobx";
 import {modelResponseAdapter, ResponseAdapter} from "./Model/BinderResponse";
 import { map, isArray, sortBy, filter, find, forIn, uniqBy, result, omit } from 'lodash';
@@ -169,11 +169,11 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
         return map(this.models, mapping);
     }
 
-    toBackendAll(options: ToBackendAllParams<T> = {}): { data: Partial<T>[], relations: object } {
+    toBackendAll(options: ToBackendAllParams<T> = {}): { data: BackendData[], relations: object } {
         const relevantModels = options.onlyChanges ? this.models.filter(model => model.isNew || model.hasUserChanges) : this.models;
         const modelData = relevantModels.map(model => model.toBackendAll(options));
 
-        let data: Partial<T>[] = [];
+        let data: BackendData[] = [];
         const relations = {};
 
         modelData.forEach(model => {

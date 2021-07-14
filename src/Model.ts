@@ -19,15 +19,20 @@ function concatInDict(dict: object, key: string, value: any) {
 // Example: input `animal.kind.breed` output -> `['animal', 'kind.breed']`
 const RE_SPLIT_FIRST_RELATION = /([^.]+)\.(.+)/;
 
-
-
 export interface ModelData {
     id?: number
 }
 
+// Use this special type to handle Casts types
+export type ParseData<T> = { [P in keyof T]?: any };
+
+// This type is complex because the attribute names between frontend and backend can differ
+// (camelCase vs snake_case). For now, I will only list the id...
+export type BackendData = { id?: number };
+
 export interface ToBackendParams<T extends ModelData> {
     data?: T;
-    mapData?: (x: Partial<T>) => Partial<T>;
+    mapData?: (x: BackendData) => BackendData;
 
     onlyChanges?: boolean;
     fields?: string[];
@@ -116,7 +121,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
     @observable __fileDeletions: object = {};
     @observable __fileExists: object = {};
 
-    public constructor(data?: T, options?: ModelOptions<T>) {
+    public constructor(data?: ParseData<T>, options?: ModelOptions<T>) {
         // Make sure the model is patched, such that the afterConstruct is called
         if (!this.constructor['_isTsPatched']) {
             throw new Error("Model is not patched with @tsPatch")
@@ -144,7 +149,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
      * @param options
      * @private
      */
-    private afterConstructor(data?: T, options?: ModelOptions<T>) {
+    private afterConstructor(data?: ParseData<T>, options?: ModelOptions<T>) {
         options = options || {};
         this.__store = options.store;
 
@@ -209,7 +214,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
      * @param data
      */
     @action
-    public parse(data: T): Model<T> {
+    public parse(data: ParseData<T>): Model<T> {
         if (!isPlainObject(data)) {
             throw Error(`Parameter supplied to \`parse()\` is not an object, got: ${JSON.stringify(
                 data
@@ -220,8 +225,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
             const attr = this.constructor['fromBackendAttrKey'](key);
             // parse normal attributes
             if (this.__attributes.includes(key)) {
-                // @ts-ignore
-                this[attr] = value;
+                this[attr] = this.__parseAttr(attr, value);
             } else if (this.__activeCurrentRelations.includes(key)) {
 
                 // Parse the relations
@@ -240,6 +244,15 @@ export abstract class Model<T extends ModelData> implements WorkAround {
 
     }
 
+    __parseAttr(attr: string, value: any): any {
+        const casts = this.casts();
+        const cast = casts[attr];
+        if (cast !== undefined) {
+            return cast.parse(attr, value);
+        }
+        return value;
+    }
+
     fileFields() {
         return this.constructor['fileFields'];
     }
@@ -253,7 +266,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
     }
 
     casts() {
-        return [];
+        return {};
     }
 
     @computed
@@ -542,14 +555,14 @@ export abstract class Model<T extends ModelData> implements WorkAround {
         }
     }
 
-    toBackend(params?: ToBackendParams<T> | undefined): Partial<T> {
+    toBackend(params?: ToBackendParams<T> | undefined): BackendData {
         if (params === undefined) {
             params = {};
         }
 
         const data = params.data || {};
 
-        const output: Partial<T> = {};
+        const output: BackendData = {};
         // By default we'll include all fields (attributes+relations), but sometimes you might want to specify the fields to be included.
         const fieldFilter = (field: string) => {
             if (!this.fieldFilter(field)) {
@@ -605,7 +618,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
         if (params.mapData) {
             return params.mapData(output);
         } else {
-            return output as T;
+            return output;
         }
     }
 
@@ -736,7 +749,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
         });
     }
 
-    toBackendAll(options: ToBackendAllParams<T> = {}): { data: Partial<T>[], relations: object } {
+    toBackendAll(options: ToBackendAllParams<T> = {}): { data: BackendData[], relations: object } {
         const nestedRelations = options.nestedRelations || {};
         const data = this.toBackend({
             data: options.data,
