@@ -25,6 +25,15 @@ export interface FetchResponse<T> {
     reverseRelMapping: object;
 }
 
+export interface FetchStoreResponse<T> {
+    data: T[];
+    repos: { [key: string]: ModelData[] };
+    relMapping: { [key: string]: string };
+    reverseRelMapping: object;
+    totalRecords: number;
+    response: GetResponse<T>;
+}
+
 export interface GetResponse<T extends ModelData> {
     data: T[] | T;
     with: { [key: string]: ModelData[] };
@@ -46,6 +55,15 @@ export interface RequestOptions {
     skipFormatter?: boolean;
     params?: RequestData;
     headers?: object;
+}
+
+export interface FetchStoreOptions {
+    url?: string;
+    data?: RequestData;
+    requestOptions?: RequestOptions;
+    with?: string;
+    limit?: number | string;
+    offset?: number;
 }
 
 export interface RequestData {

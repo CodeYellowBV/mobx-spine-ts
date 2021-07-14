@@ -1,7 +1,9 @@
-import {Model, ModelData, ModelOptions, NestedRelations, NestedStrings, ToBackendAllParams} from "Model";
+import {Model, ModelData, ModelOptions, NestedRelations, ToBackendAllParams} from "Model";
 import {action, computed, IObservableArray, observable, autorun } from "mobx";
 import {modelResponseAdapter, ResponseAdapter} from "./Model/BinderResponse";
-import { map, isArray, sortBy, filter, find, forIn, uniqBy } from 'lodash';
+import { map, isArray, sortBy, filter, find, forIn, uniqBy, result, omit } from 'lodash';
+import { BinderApi } from "BinderApi";
+import { FetchStoreOptions, GetResponse } from "Api";
 
 export interface StoreOptions<T> {
     /**
@@ -19,12 +21,24 @@ export interface StoreOptions<T> {
      */
     comparator?: string | ((o1: Model<T>, o2: Model<T>) => number);
 
-    params?: object; // TODO Investigate this type
+    /**
+     * This property can be used to pass arbitrary options to store.params. These properties will
+     * be ignored by mobx-spine, but can be useful for applications to pass data around.
+     */
+    params?: object;
 
-    repository?: any; // TODO Find out what this is
+    /**
+     * I have no idea what this is for.
+     */
+    repository?: any;
 }
 
-export class Store<T extends ModelData, U extends Model<T>> {
+interface WorkAround {
+    url?: string | (() => string);
+    api?: BinderApi;
+}
+
+export class Store<T extends ModelData, U extends Model<T>> implements WorkAround {
     models: IObservableArray<Model<T>> = observable([]);
     __activeRelations: string[] = [];
     /**
@@ -40,6 +54,8 @@ export class Store<T extends ModelData, U extends Model<T>> {
         totalRecords: 0
     };
 
+    @observable params: object = {};
+
     /**
      * The comparator that will be used by the `sort` method of this Store. It can
      * be a string or a function. If it is a string, the models in this store will
@@ -49,14 +65,50 @@ export class Store<T extends ModelData, U extends Model<T>> {
      */
     comparator: string | ((o1: Model<T>, o2: Model<T>) => number);
 
+    api?: BinderApi = null;
+
     Model: (new (data?: T, options?: ModelOptions<T>) => Model<T>) = null;
 
     public constructor(rawOptions?: StoreOptions<T>) {
+
+        // Nasty work-around for TS2425
+        // @ts-ignore
+        if (!this.url) {
+            // @ts-ignore
+            this.url = () => {
+                const bname = this.constructor['backendResourceName'];
+                if (bname) {
+                    return `/${bname}/`;
+                }
+                return null;
+            };
+        }
+        
         const options = rawOptions || {};
         this.__repository = options.repository;
         this.__activeRelations = options.relations || [];
-        this.__state.limit = options.limit;
+        if (options.limit) {
+            this.__state.limit = options.limit;
+        }
+        if (options.params) {
+            this.params = options.params;
+        }
         this.comparator = options.comparator;
+        this.initialize();
+    }
+
+    __getApi(): BinderApi {
+        if (!this.api) {
+            throw new Error(
+                '[mobx-spine] You are trying to perform an API request without an `api` property defined on the store.'
+            );
+        }
+        if (!result(this, 'url')) {
+            throw new Error(
+                '[mobx-spine] You are trying to perform an API request without a `url` property defined on the store.'
+            );
+        }
+        return this.api;
     }
 
     public fromBackend<T>(input: ResponseAdapter<T>): void {
@@ -81,6 +133,10 @@ export class Store<T extends ModelData, U extends Model<T>> {
         )
     }
 
+    initialize(): void {
+        // Subclasses can override this
+    }
+
     protected _newModel(data?: T): Model<T> {
         return new this.Model(data, {
             store: this,
@@ -94,14 +150,14 @@ export class Store<T extends ModelData, U extends Model<T>> {
     }
 
     @computed
-    get hasUserChanges() {
+    get hasUserChanges(): boolean {
         return this.hasSetChanges || this.models.some(m => m.hasUserChanges);
     }
 
     // TODO: Maybe we can keep track of what got added and what got
     // removed exactly.  For now this should be enough.
     @computed
-    get hasSetChanges() {
+    get hasSetChanges(): boolean {
         return this.__setChanged;
     }
 
@@ -113,16 +169,16 @@ export class Store<T extends ModelData, U extends Model<T>> {
         return map(this.models, mapping);
     }
 
-    toBackendAll(options: ToBackendAllParams<T> = {}) {
+    toBackendAll(options: ToBackendAllParams<T> = {}): { data: Partial<T>[], relations: object } {
         const relevantModels = options.onlyChanges ? this.models.filter(model => model.isNew || model.hasUserChanges) : this.models;
         const modelData = relevantModels.map(model => model.toBackendAll(options));
 
-        let data = [];
+        let data: Partial<T>[] = [];
         const relations = {};
 
         modelData.forEach(model => {
             data = data.concat(model.data);
-            forIn(model.relations, (relModel, key) => {
+            forIn(model.relations, (relModel, key: string) => {
                 relations[key] = relations[key]
                     ? relations[key].concat(relModel)
                     : relModel;
@@ -135,7 +191,7 @@ export class Store<T extends ModelData, U extends Model<T>> {
 
     // Create a new instance of this store with a predicate applied.
     // This new store will be automatically kept in-sync with all models that adhere to the predicate.
-    virtualStore({ filter, comparator }) {
+    virtualStore({ filter, comparator }): Store<T, U> {
         // @ts-ignore
         const store: this = new this.constructor({
             relations: this.__activeRelations,
@@ -158,8 +214,79 @@ export class Store<T extends ModelData, U extends Model<T>> {
         return store;
     }
 
-    __parseNewIds(idMaps: { [x: string]: number[][] }) {
+    __parseNewIds(idMaps: { [x: string]: number[][] }): void {
         this.each(model => model.__parseNewIds(idMaps));
+    }
+
+    toJS() {
+        return this.models.map(model => model.toJS());
+    }
+
+    // Methods for pagination.
+
+    getPageOffset(): number {
+        return (this.__state.currentPage - 1) * this.__state.limit;
+    }
+
+    @action
+    setLimit(limit?: number): void {
+        this.__state.limit = limit || null;
+    }
+
+    @computed
+    get totalPages(): number {
+        if (!this.__state.limit) {
+            return 0;
+        }
+        return Math.ceil(this.__state.totalRecords / this.__state.limit);
+    }
+
+    @computed
+    get currentPage(): number {
+        return this.__state.currentPage;
+    }
+
+    @computed
+    get hasNextPage(): boolean {
+        return this.__state.currentPage + 1 <= this.totalPages;
+    }
+
+    @computed
+    get hasPreviousPage(): boolean {
+        return this.__state.currentPage > 1;
+    }
+
+    @action
+    getNextPage(): Promise<GetResponse<T>> {
+        if (!this.hasNextPage) {
+            throw new Error('[mobx-spine] There is no next page');
+        }
+        this.__state.currentPage += 1;
+        return this.fetch();
+    }
+
+    @action
+    getPreviousPage(): Promise<GetResponse<T>> {
+        if (!this.hasPreviousPage) {
+            throw new Error('[mobx-spine] There is no previous page');
+        }
+        this.__state.currentPage -= 1;
+        return this.fetch();
+    }
+
+    @action
+    setPage(page: number = 1, options: { fetch?: boolean } = {}): Promise<GetResponse<T> | void> {
+        if (page <= 0) {
+            throw new Error(`[mobx-spine] Page (${page}) should greater than 0`);
+        }
+        if (page > (this.totalPages || 1)) {
+            throw new Error(`[mobx-spine] Page (${page}) should be between 1 and ${this.totalPages || 1}`);
+        }
+        this.__state.currentPage = page;
+        if (options.fetch === undefined || options.fetch) {
+            return this.fetch();
+        }
+        return Promise.resolve();
     }
 
     @action
@@ -170,6 +297,36 @@ export class Store<T extends ModelData, U extends Model<T>> {
         if (length > 0) {
             this.__setChanged = true;
         }
+    }
+
+    buildFetchData(options: FetchStoreOptions): FetchStoreOptions {
+        return Object.assign(
+            this.__getApi().buildFetchStoreParams(this),
+            this.params,
+            options.data
+        );
+    }
+
+    @action
+    fetch(options: FetchStoreOptions = {}): Promise<GetResponse<T>> {
+
+        const data = this.buildFetchData(options);
+        const promise = this.wrapPendingRequestCount(
+            this.__getApi()
+            .fetchStore<T>({
+                url: options.url || result(this, 'url'),
+                data,
+                requestOptions: omit(options, 'data'),
+            })
+            .then(action(res => {
+                this.__state.totalRecords = res.totalRecords;
+                this.fromBackend(res);
+
+                return res.response;
+            }))
+        );
+
+        return promise;
     }
 
     @action

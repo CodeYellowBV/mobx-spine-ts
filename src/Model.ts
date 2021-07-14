@@ -71,7 +71,12 @@ export interface ModelOptions<T> {
 
 type StoreOrModelConstructor = (new () => Model<any>) | (new () => Store<any, any>);
 
-export abstract class Model<T extends ModelData> {
+interface WorkAround {
+    urlRoot?: string | (() => string);
+    api?: Api;
+}
+
+export abstract class Model<T extends ModelData> implements WorkAround {
     
     /**
      * How the model is known at the backend. This is useful when the model is in a
@@ -117,6 +122,18 @@ export abstract class Model<T extends ModelData> {
             throw new Error("Model is not patched with @tsPatch")
         }
 
+        // @ts-ignore
+        if (!this.urlRoot) {
+            // @ts-ignore
+            this.urlRoot = () => {
+                const bname = this.constructor['backendResourceName'];
+                if (bname) {
+                    return `/${bname}/`;
+                } else {
+                    return null;
+                }
+            };
+        }
     }
 
     /***
@@ -185,15 +202,6 @@ export abstract class Model<T extends ModelData> {
                 this.__pendingRequestCount--;
                 throw err;
             });
-    }
-
-    urlRoot: (string|(() => string)) = () => {
-        const bname = this.constructor['backendResourceName'];
-        if (bname) {
-            return `/${bname}/`;
-        } else {
-            return null;
-        }
     }
 
     /**
@@ -269,7 +277,7 @@ export abstract class Model<T extends ModelData> {
         return toJS(value);
     }
 
-    toJS() {
+    toJS(): { [key: string]: any } {
         const output = {};
         this.__attributes.forEach(attr => {
             output[attr] = this.__toJSAttr(attr, this[attr]);

@@ -1,6 +1,7 @@
-import Api, { FetchResponse, GetResponse, PutResponse, RequestData, RequestOptions } from 'Api';
+import Api, { FetchResponse, FetchStoreOptions, FetchStoreResponse, GetResponse, PutResponse, RequestData, RequestOptions } from 'Api';
 import axios, {AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse, Method} from 'axios';
 import {get} from 'lodash';
+import { Store } from 'Store';
 import { Model, ModelData } from './Model';
 
 function csrfSafeMethod(method: Method) {
@@ -261,5 +262,34 @@ export class BinderApi implements Api {
     deleteModel(options: { url: string, requestOptions: RequestOptions }): Promise<void> | Promise<AxiosResponse> {
         // TODO: kind of silly now, but we'll probably want better error handling soon.
         return this.delete(options.url, null, options.requestOptions);
+    }
+
+    buildFetchStoreParams<T extends ModelData, U extends Model<T>>(store: Store<T, U>) {
+        const offset = store.getPageOffset();
+        const limit = store.__state.limit;
+        return {
+            with:
+                store.__activeRelations
+                    .map(store.Model['toBackendAttrKey'])
+                    .join(',') || null,
+            limit: limit === null ? 'none' : limit,
+            // Hide offset if zero so the request looks cleaner in DevTools.
+            offset: offset || null,
+        };
+    }
+
+    fetchStore<T extends ModelData>(options: FetchStoreOptions): Promise<FetchStoreResponse<T>> {
+        return this.get<T>(options.url, options.data, options.requestOptions).then((rawRes: GetResponse<T> | AxiosResponse) => {
+            // This won't go well if the skipFormatting option is used
+            const res = rawRes as GetResponse<T>;
+            return {
+                response: res,
+                data: res.data as T[],
+                repos: res.with,
+                relMapping: res.with_mapping,
+                reverseRelMapping: res.with_related_name_mapping,
+                totalRecords: res.meta.total_records,
+            };
+        });
     }
 }
