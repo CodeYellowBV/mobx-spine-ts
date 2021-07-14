@@ -40,11 +40,11 @@ function parseFromBackendRelations<T>(this: Model<T>, response: Response<T>): vo
         // @ts-ignore
         const relation = new relations[relationName]();
         if (relation instanceof Store) {
-            parseManyToRelations.bind(this)(response, relationName)
+            parseManyToRelations.bind(this)(response, relationName);
         } else if (relation instanceof Model) {
-            parseOneToRelations.bind(this)(response, relationName)
+            parseOneToRelations.bind(this)(response, relationName);
         } else {
-            throw Error('ParseFromBackendRelation: Expect relation to by either a store or a model')
+            throw Error('ParseFromBackendRelation: Expect relation to be either a store or a model');
         }
     }
 }
@@ -122,7 +122,7 @@ function filterActiveRelations(parentActiveRelations: string[], relation: string
             // Add one to include for the .
             return activeRelation.substr(relation.length + 1);
         }
-    )
+    );
 }
 
 /**
@@ -197,7 +197,7 @@ function parseManyToRelations<T, U extends ModelData>(this: Model<T>, response: 
 
 
     // @ts-ignore
-    this[relationName] = new RelationStore(null, {
+    this[relationName] = new RelationStore({
         relations: filterActiveRelations(this.__activeRelations, relationName)
     });
 

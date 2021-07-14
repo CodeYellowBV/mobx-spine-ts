@@ -6,7 +6,7 @@ import { camelToSnake, snakeToCamel, forNestedRelations, relationsToNestedKeys }
 import {
     forIn, uniqueId, result, mapValues, isPlainObject, isArray, 
     uniq, uniqBy, get, omit, mapKeys, each
-} from 'lodash'
+} from 'lodash';
 import {Store} from "./Store";
 import baseFromBackend from "./Model/FromBackend";
 import Api from 'Api';
@@ -822,7 +822,6 @@ export abstract class Model<T extends ModelData> {
             const otherRelations = otherRelationNames && [otherRelationNames];
 
             relationModels[currentRelation] = currentProperty ? currentProperty.concat(otherRelations) : otherRelations
-            // debugger;
 
             if (this.__attributes.includes(currentRelation)) {
                 throw Error(`Cannot define \`${currentRelation}\` as both an attribute and a relation. You probably need to remove the attribute.`)

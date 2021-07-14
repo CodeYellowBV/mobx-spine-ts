@@ -4,15 +4,41 @@ import {modelResponseAdapter, ResponseAdapter} from "./Model/BinderResponse";
 import { map, isArray, sortBy, filter, find, forIn, uniqBy } from 'lodash';
 
 export interface StoreOptions<T> {
-    relations?: string[],     // List of active relations for this store
+    /**
+     * List of active relations for this store
+     */
+    relations?: string[];
+
+    /**
+     * Maximum number of entries this store will have per page
+     */
+    limit?: number;
+
+    /**
+     * Used for sorting entries
+     */
+    comparator?: string | ((o1: Model<T>, o2: Model<T>) => number);
+
+    params?: object; // TODO Investigate this type
+
+    repository?: any; // TODO Find out what this is
 }
 
 export class Store<T extends ModelData, U extends Model<T>> {
     models: IObservableArray<Model<T>> = observable([]);
     __activeRelations: string[] = [];
+    /**
+     * I have no clue what this is for.
+     */
+    __repository?: any;
 
     @observable __pendingRequestCount = 0;
     @observable __setChanged = false;
+    @observable __state = {
+        currentPage: 1,
+        limit: 25,
+        totalRecords: 0
+    };
 
     /**
      * The comparator that will be used by the `sort` method of this Store. It can
@@ -25,17 +51,20 @@ export class Store<T extends ModelData, U extends Model<T>> {
 
     Model: (new (data?: T, options?: ModelOptions<T>) => Model<T>) = null;
 
-    public constructor(options?: StoreOptions<T>) {
-        this.__activeRelations = options?.relations || [];
+    public constructor(rawOptions?: StoreOptions<T>) {
+        const options = rawOptions || {};
+        this.__repository = options.repository;
+        this.__activeRelations = options.relations || [];
+        this.__state.limit = options.limit;
+        this.comparator = options.comparator;
     }
 
     public fromBackend<T>(input: ResponseAdapter<T>): void {
         const response = modelResponseAdapter(input);
 
+        const responseData: T[] = isArray(response.data) ? response.data as T[]: [response.data as T];
         this.models.replace(
-            (response.data as T[]).map(
-                // (ModelData: T) is not working????
-
+            responseData.map(
                 (modelData: ModelData) => {
                     const model = this._newModel();
                     model.fromBackend(

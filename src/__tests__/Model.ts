@@ -3,6 +3,7 @@ import {
     AnimalWithFrontendProp, AnimalWithoutApi, AnimalWithObject, AnimalWithoutUrl,
     Breed, Kind, Location, Person, PersonStore, KindResourceName
 } from "./fixtures/Animal";
+import _ from 'lodash';
 import {Location as CustomerLocation, Customer} from "./fixtures/Customer";
 import {Model, ModelData, tsPatch} from "../Model";
 import { BinderApi } from "../BinderApi";
@@ -18,6 +19,15 @@ import customersLocationBestCookWorkPlaces from './fixtures/customers-location-b
 import animalKindBreedDataNested from './fixtures/animal-with-kind-breed-nested.json';
 import animalsWithPastOwnersAndTownData from "./fixtures/animals-with-past-owners-and-town.json";
 import customersWithTownCookRestaurant from './fixtures/customers-with-town-cook-restaurant.json';
+
+beforeEach(() => {
+    // Refresh lodash's `_.uniqueId` internal state for every test
+    let idCounter = 0;
+    _.uniqueId = jest.fn((prefix: string) => {
+        idCounter += 1;
+        return prefix + idCounter;
+    });
+});
 
 const spyWarn = jest.spyOn(console, 'warn');
 
@@ -402,17 +412,15 @@ test('Parsing store relation with model relation in it', () => {
     expect(animal.pastOwners).not.toBeUndefined();
     // @ts-ignore
     expect(animal.pastOwners).toBeInstanceOf(PersonStore);
+
     animal.fromBackend({
         data: animalsWithPastOwnersAndTownData.data,
         repos: animalsWithPastOwnersAndTownData.with,
         relMapping: animalsWithPastOwnersAndTownData.with_mapping,
     });
 
-
     // @ts-ignore
     expect(animal.pastOwners.map('id')).toEqual([55, 66]);
-
-
 
     // @ts-ignore
     expect(animal.pastOwners.get(55).town).toBeInstanceOf(Location);
@@ -446,6 +454,7 @@ test('Parsing Store -> Model -> Store relation', () => {
 });
 
 test('Parsing Model -> Model -> Store with a nullable fk', () => {
+    // TODO Fix this last failing test
     const customer = new Customer(null, {
         relations: ['town.restaurants']
     });
