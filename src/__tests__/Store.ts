@@ -1,6 +1,6 @@
 import axios from 'axios';
 import MockAdapter from 'axios-mock-adapter';
-import { Model, Store, BinderApi } from '../';
+import { Model, Store, BinderApi, ModelData } from '../';
 import {
     Animal,
     AnimalStore,
@@ -29,6 +29,7 @@ import pagination1Data from './fixtures/pagination/1.json';
 import pagination2Data from './fixtures/pagination/2.json';
 import pagination3Data from './fixtures/pagination/3.json';
 import pagination4Data from './fixtures/pagination/4.json';
+import { FetchStoreOptions } from 'Api';
 
 const simpleData = [
     {
@@ -59,23 +60,31 @@ test('Chaining parse', () => {
     expect(animalStore).toBeInstanceOf(AnimalStore);
 });
 
-test('Initialize store in constructor should throw error', () => {
-    expect(() => {
-        return new AnimalStore([]);
-    }).toThrow(
-        'Store only accepts an object with options. Chain `.parse(data)` to add models.'
-    );
-});
+// This test is commented out because this is a compile error rather than runtime error in TS
+// test('Initialize store in constructor should throw error', () => {
+//     expect(() => {
+//         return new AnimalStore([]);
+//     }).toThrow(
+//         'Store only accepts an object with options. Chain `.parse(data)` to add models.'
+//     );
+// });
 
-test('Initialize store with invalid option', () => {
-    expect(() => {
-        return new AnimalStore({ foo: 'bar' });
-    }).toThrow('Unknown option passed to store: foo');
-});
+// This test is commented out because this is a compile error rather than runtime error in TS
+// test('Initialize store with invalid option', () => {
+//     expect(() => {
+//         return new AnimalStore({ foo: 'bar' });
+//     }).toThrow('Unknown option passed to store: foo');
+// });
+
+interface EmptyModelData extends ModelData {}
+
+class EmptyModel extends Model<EmptyModelData> implements EmptyModelData {
+    id?: number;
+}
 
 test('initialize() method should be called', () => {
     const initMock = jest.fn();
-    class Zebra extends Store {
+    class Zebra extends Store<EmptyModelData, EmptyModel> {
         initialize() {
             initMock();
         }
@@ -106,10 +115,10 @@ test('at model (non existent index)', () => {
 
     expect(() => {
         return animalStore.at(3);
-    }).toThrow('Index 3 is out of bounds (max 2).');
+    }).toThrow('[mobx-spine] Index 3 is out of bounds (max 2).');
     expect(() => {
         return animalStore.at(4);
-    }).toThrow('Index 4 is out of bounds (max 2).');
+    }).toThrow('[mobx-spine] Index 4 is out of bounds (max 2).');
 });
 
 test('Model -> Model relation', () => {
@@ -119,6 +128,7 @@ test('Model -> Model relation', () => {
     animalStore.parse(simpleData);
 
     const animal = animalStore.at(0);
+    // @ts-ignore
     expect(animal.kind.breed).toBeInstanceOf(Breed);
 });
 
@@ -131,13 +141,15 @@ test('Store -> Store relation', () => {
         data: customersWithOldTowns.data,
         repos: customersWithOldTowns.with,
         relMapping: customersWithOldTowns.with_mapping,
-        reverseRelMapping: customersWithOldTowns.with_related_name_mapping, // undefined!
+        reverseRelMapping: customersWithOldTowns['with_related_name_mapping'], // undefined!
     });
 
+    // @ts-ignore
     expect(customerStore.at(0).oldTowns.map('id')).toEqual([1, 2]);
     expect(
         customerStore
             .at(0)
+            // @ts-ignore
             .oldTowns.at(0)
             .restaurants.map('id')
     ).toEqual([10, 20]);
@@ -270,7 +282,7 @@ test('remove model by id with invalid number', () => {
     const animalStore = new AnimalStore();
     expect(() => {
         return animalStore.removeById(['q']);
-    }).toThrow('Cannot remove a model by id that is not a number: ["q"]');
+    }).toThrow('[mobx-spine] Can\'t remove a model by id that is Not A Number: ["q"]');
 });
 
 test('add one model', () => {
@@ -313,7 +325,7 @@ test('add multiple models with same id', () => {
             },
         ]);
     }).toThrow(
-        'A model with the same primary key value "20" already exists in this store.'
+        'A model with the same id 20 already exists'
     );
 });
 
@@ -326,7 +338,7 @@ test('add one model with existing id', () => {
             },
         ]);
     }).toThrow(
-        'A model with the same primary key value "3" already exists in this store.'
+        'A model with the same id 3 already exists'
     );
 });
 
@@ -388,17 +400,18 @@ test('virtualStore unsubscribe', () => {
     expect(virtual.map('id')).toEqual([]);
 });
 
-test('backendResourceName defined as not static should throw error', () => {
-    class Zebra extends Store {
-        backendResourceName = 'blaat';
-    }
+// This test is commented out because the mistake being tested is now a compile error
+// test('backendResourceName defined as not static should throw error', () => {
+//     class Zebra extends Store<EmptyModelData, EmptyModel> {
+//         backendResourceName = 'blaat';
+//     }
 
-    expect(() => {
-        return new Zebra();
-    }).toThrow(
-        '`backendResourceName` should be a static property on the store.'
-    );
-});
+//     expect(() => {
+//         return new Zebra();
+//     }).toThrow(
+//         '`backendResourceName` should be a static property on the store.'
+//     );
+// });
 
 test('One-level store relation', () => {
     const animalStore = new AnimalStore({
@@ -412,8 +425,11 @@ test('One-level store relation', () => {
         reverseRelMapping: personsWithPetsNoIdListData.with_related_name_mapping,
     });
 
+    // @ts-ignore
     expect(animalStore.at(0).pastOwners).toBeInstanceOf(PersonStore);
+    // @ts-ignore
     expect(animalStore.get(2).pastOwners.map('id')).toEqual([2, 3]);
+    // @ts-ignore
     expect(animalStore.get(3).pastOwners.map('id')).toEqual([1]);
 });
 
@@ -433,9 +449,13 @@ test('One-level store relation without id list (using reverse mapping)', () => {
         reverseRelMapping: personsWithPetsNoIdListData.with_related_name_mapping,
     });
 
+    // @ts-ignore
     expect(personStore.at(0).pets).toBeInstanceOf(AnimalStore); // Jon's pets:
+    // @ts-ignore
     expect(personStore.get(1).pets.map('id')).toEqual([3, 4]);  // Garfield and Odie
+    // @ts-ignore
     expect(personStore.get(2).pets.map('id')).toEqual([]); // Bobbie has no pets
+    // @ts-ignore
     expect(personStore.get(3).pets.map('id')).toEqual([2]); // Oessein's pet: "Cat"
 });
 
@@ -451,14 +471,22 @@ test('Two-level store relation without id list (using reverse mapping)', () => {
         reverseRelMapping: townsWithRestaurantsAndCustomersNoIdList.with_related_name_mapping,
     });
 
+    // @ts-ignore
     expect(locationStore.at(0).restaurants).toBeInstanceOf(RestaurantStore); // Restaurants in Hardinxveld
+    // @ts-ignore
     expect(locationStore.get(1).restaurants.map('id')).toEqual([1, 2]);  // Fastfood and Seafood
+    // @ts-ignore
     expect(locationStore.get(2).restaurants.map('id')).toEqual([3, 4]); // Taco Bell and Five Guys
+    // @ts-ignore
     expect(locationStore.get(3).restaurants.map('id')).toEqual([]); // Best has no Restaurants
 
+    // @ts-ignore
     const fastfood = locationStore.get(1).restaurants.get(1);
+    // @ts-ignore
     const seafood = locationStore.get(1).restaurants.get(2);
+    // @ts-ignore
     const tacoBell = locationStore.get(2).restaurants.get(3);
+    // @ts-ignore
     const fiveGuys = locationStore.get(2).restaurants.get(4);
     expect(fastfood.favouriteCustomers).toBeInstanceOf(CustomerStore);
     expect(fastfood.favouriteCustomers.map('id')).toEqual([2, 3]);  // Piet and Ingrid
@@ -479,24 +507,25 @@ test('toJS', () => {
     expect(animalStore.toJS()).toEqual([{ id: 2, name: 'Monkey' }]);
 });
 
-test('Non-array given to parse() should throw an error', () => {
-    expect(() => {
-        const animalStore = new AnimalStore();
-        return animalStore.parse(1);
-    }).toThrow('Parameter supplied to `parse()` is not an array, got: 1');
-});
+// This test is commented out because the error being tested is a compile error in TypeScript
+// test('Non-array given to parse() should throw an error', () => {
+//     expect(() => {
+//         const animalStore = new AnimalStore();
+//         return animalStore.parse(1);
+//     }).toThrow('Parameter supplied to `parse()` is not an array, got: 1');
+// });
 
 test('fetch without api', () => {
     const animalStore = new AnimalStoreWithoutApi();
     expect(() => animalStore.fetch()).toThrow(
-        'You are trying to perform a API request without an `api` property defined on the store.'
+        '[mobx-spine] You are trying to perform an API request without an `api` property defined on the store.'
     );
 });
 
 test('fetch without url', () => {
     const animalStore = new AnimalStoreWithoutUrl();
     expect(() => animalStore.fetch()).toThrow(
-        'You are trying to perform a API request without an `url` property defined on the store.'
+        '[mobx-spine] You are trying to perform an API request without a `url` property defined on the store.'
     );
 });
 
@@ -605,12 +634,12 @@ describe('requests', () => {
 
 
     test('fetch with custom buildFetchData', () => {
-        const store = new class extends Store {
-            Model = Model;
+        const store = new class extends Store<EmptyModelData, EmptyModel> {
+            Model = EmptyModel;
             api = new BinderApi();
             static backendResourceName = 'resource';
 
-            buildFetchData(options) {
+            buildFetchData(options: FetchStoreOptions) {
                 return { custom: 'data' };
             }
         }();
@@ -676,7 +705,9 @@ describe('requests', () => {
 
         return animalStore.fetch().then(() => {
             expect(animalStore.at(0).id).toBe(1);
+            // @ts-ignore
             expect(animalStore.at(0).kind.id).toBe(4);
+            // @ts-ignore
             expect(animalStore.at(0).kind.breed.id).toBe(3);
         });
     });
@@ -764,15 +795,16 @@ describe('Pagination', () => {
         expect(animalStore.totalPages).toBe(0);
     });
 
-    test('set invalid limit', () => {
-        const animalStore = new AnimalStore();
+    // This test is commented out because the error being tested is now a compile error
+    // test('set invalid limit', () => {
+    //     const animalStore = new AnimalStore();
 
-        expect(() => animalStore.setLimit('a')).toThrow(
-            'Page limit should be a number or falsy value.'
-        );
+    //     expect(() => animalStore.setLimit('a')).toThrow(
+    //         'Page limit should be a number or falsy value.'
+    //     );
 
-        expect(animalStore.totalPages).toBe(0);
-    });
+    //     expect(animalStore.totalPages).toBe(0);
+    // });
 
     test('with four pages on first page', () => {
         mock.onAny().replyOnce(config => {
@@ -907,7 +939,7 @@ describe('Pagination', () => {
         const animalStore = new AnimalStore();
 
         expect(() => animalStore.getPreviousPage()).toThrow(
-            'There is no previous page.'
+            '[mobx-spine] There is no previous page'
         );
     });
 
@@ -915,7 +947,7 @@ describe('Pagination', () => {
         const animalStore = new AnimalStore();
 
         expect(() => animalStore.getNextPage()).toThrow(
-            'There is no next page.'
+            '[mobx-spine] There is no next page'
         );
     });
 
@@ -948,8 +980,8 @@ describe('Pagination', () => {
     test('setPage with invalid page', () => {
         const animalStore = new AnimalStore();
 
-        expect(() => animalStore.setPage('')).toThrow(
-            'Page should be a number above 1.'
+        expect(() => animalStore.setPage(-1)).toThrow(
+            'Page (-1) should be greater than 0'
         );
     });
 
@@ -957,7 +989,7 @@ describe('Pagination', () => {
         const animalStore = new AnimalStore();
 
         expect(() => animalStore.setPage(0)).toThrow(
-            'Page should be a number above 1.'
+            '[mobx-spine] Page (0) should be greater than 0'
         );
     });
 
@@ -972,7 +1004,7 @@ describe('Pagination', () => {
 
         return animalStore.fetch().then(() => {
             expect(() => animalStore.setPage(5, { fetch: false })).toThrow(
-                'Page should be between 1 and 4.'
+                '[mobx-spine] Page (5) should be between 1 and 4'
             );
         });
     });

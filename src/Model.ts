@@ -842,7 +842,9 @@ export abstract class Model<T extends ModelData> implements WorkAround {
             const currentProperty = relationModels[currentRelation];
             const otherRelations = otherRelationNames && [otherRelationNames];
 
-            relationModels[currentRelation] = currentProperty ? currentProperty.concat(otherRelations) : otherRelations
+            if (otherRelations !== undefined || !currentProperty) {
+                relationModels[currentRelation] = currentProperty ? currentProperty.concat(otherRelations) : otherRelations;
+            }
 
             if (this.__attributes.includes(currentRelation)) {
                 throw Error(`Cannot define \`${currentRelation}\` as both an attribute and a relation. You probably need to remove the attribute.`)

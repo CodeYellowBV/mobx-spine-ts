@@ -22,14 +22,14 @@ export interface FetchResponse<T> {
     data: T;
     repos: { [key: string]: ModelData[] };
     relMapping: { [key: string]: string };
-    reverseRelMapping: object;
+    reverseRelMapping: { [key: string]: string };
 }
 
 export interface FetchStoreResponse<T> {
     data: T[];
     repos: { [key: string]: ModelData[] };
     relMapping: { [key: string]: string };
-    reverseRelMapping: object;
+    reverseRelMapping: { [key: string]: string };
     totalRecords: number;
     response: GetResponse<T>;
 }

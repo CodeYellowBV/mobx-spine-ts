@@ -1,7 +1,7 @@
 import {BackendData, Model, ModelData, ModelOptions, NestedRelations, ToBackendAllParams} from "Model";
-import {action, computed, IObservableArray, observable, autorun } from "mobx";
+import {action, computed, IObservableArray, observable, autorun, IReactionDisposer } from "mobx";
 import {modelResponseAdapter, ResponseAdapter} from "./Model/BinderResponse";
-import { map, isArray, sortBy, filter, find, forIn, uniqBy, result, omit } from 'lodash';
+import { isPlainObject, map, isArray, sortBy, filter, find, forIn, uniqBy, result, omit } from 'lodash';
 import { BinderApi } from "BinderApi";
 import { FetchStoreOptions, GetResponse } from "Api";
 
@@ -124,17 +124,24 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
                             data: modelData,
                             with: response.with,
                             meta: response.meta,
-                            with_mapping: response.with_mapping
+                            with_mapping: response.with_mapping,
+                            with_related_name_mapping: response.with_related_name_mapping
                         }
                     );
                     return model;
                 }
             )
-        )
+        );
+        this.sort();
     }
 
     initialize(): void {
         // Subclasses can override this
+    }
+
+    @computed
+    get isLoading() {
+        return this.__pendingRequestCount > 0;
     }
 
     protected _newModel(data?: T): U {
@@ -165,7 +172,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
         this.__setChanged = false;
     }
 
-    map<V>(mapping: (model: U) => V): V[] {
+    map<V>(mapping: string | ((model: U) => V)): V[] {
         return map(this.models, mapping);
     }
 
@@ -191,16 +198,16 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
 
     // Create a new instance of this store with a predicate applied.
     // This new store will be automatically kept in-sync with all models that adhere to the predicate.
-    virtualStore({ filter, comparator }): Store<T, U> {
+    virtualStore(params: { filter?: any[] | ((model: U) => boolean), comparator?: string | ((o1: U, o2: U) => number) }): Store<T, U> {
         // @ts-ignore
         const store: this = new this.constructor({
             relations: this.__activeRelations,
-            comparator,
+            comparator: params.comparator,
         });
 
         // Oh gawd MobX is so awesome.
         const events = autorun(() => {
-            const models = this.filter(filter);
+            const models = this.filter(params.filter);
             store.models.replace(models);
             store.sort();
 
@@ -209,10 +216,12 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
             store.__pendingRequestCount = this.__pendingRequestCount;
         });
 
-        store['unsubscribeVirtualStore'] = events;
+        store.unsubscribeVirtualStore = events;
 
         return store;
     }
+
+    unsubscribeVirtualStore?: IReactionDisposer = undefined;
 
     __parseNewIds(idMaps: { [x: string]: number[][] }): void {
         this.each(model => model.__parseNewIds(idMaps));
@@ -277,7 +286,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
     @action
     setPage(page: number = 1, options: { fetch?: boolean } = {}): Promise<GetResponse<T> | void> {
         if (page <= 0) {
-            throw new Error(`[mobx-spine] Page (${page}) should greater than 0`);
+            throw new Error(`[mobx-spine] Page (${page}) should be greater than 0`);
         }
         if (page > (this.totalPages || 1)) {
             throw new Error(`[mobx-spine] Page (${page}) should be between 1 and ${this.totalPages || 1}`);
@@ -299,7 +308,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
         }
     }
 
-    buildFetchData(options: FetchStoreOptions): FetchStoreOptions {
+    buildFetchData(options: FetchStoreOptions): object {
         return Object.assign(
             this.__getApi().buildFetchStoreParams(this),
             this.params,
@@ -405,14 +414,13 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * @returns The removed model(s)
      */
     @action
-    removeById(rawIDs: number | Array<number>) {
+    removeById(rawIDs: string | number | Array<string | number>) {
         const singular = !isArray(rawIDs);
-        const ids = singular ? [rawIDs as number] : (rawIDs as Array<number>).slice();
+        const ids = singular ? 
+            [parseInt('' + (rawIDs as string | number))] : 
+            (rawIDs as Array<string | number>).map(rawID => parseInt('' + rawID));
         if (ids.some(isNaN)) {
-            throw new Error(`
-                [mobx-spine] Can't remove a model by id that is Not A Number:
-                ${JSON.stringify(ids)}
-            `);
+                throw new Error(`[mobx-spine] Can't remove a model by id that is Not A Number: ${JSON.stringify(rawIDs)}`);
         }
 
         const models = ids.map(id => this.get(id));
@@ -433,7 +441,10 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * @returns this store
      */
     @action
-    sort(): this {
+    sort(options: object = {}): this {
+        if (!isPlainObject(options)) {
+            throw new Error('Expecting a plain object for options.');
+        }
         if (!this.comparator) {
             return this;
         }
@@ -465,7 +476,8 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      *
      * @param id
      */
-    get(id: number): U | null {
+    get(rawId: number | string): U | null {
+        const id = (typeof rawId === 'number') ? rawId as number : parseInt(rawId as string);
         return this.models.find(
             // @ts-ignore
             model => model.id === id
@@ -477,7 +489,8 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * accurately, primary key value) is included in *ids* (the parameter).
      * @param ids The id's to search for
      */
-    getByIds(ids: number[]): Array<U> {
+    getByIds(rawIds: (number | string)[]): Array<U> {
+        const ids = rawIds.map(rawId => (typeof rawId === 'number') ? rawId as number : parseInt(rawId as string));
         // @ts-ignore
         return this.models.filter(model => ids.includes(model.id));
     }
@@ -491,7 +504,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * Returns an array containing all models in this store for which the given
      * predicate returns true.
      */
-    filter(predicate: (model: U) => boolean): Array<U> {
+    filter(predicate: any[] | ((model: U) => boolean)): Array<U> {
         return filter(this.models, predicate);
     }
 
@@ -499,7 +512,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * Returns the first model for which the given predicate returns true, or
      * `undefined` if the predicate didn't return true for a single model.
      */
-    find(predicate: (model: U) => boolean): U | undefined {
+    find(predicate: object | ((model: U) => boolean)): U | undefined {
         return find(this.models, predicate);
     }
 
@@ -530,10 +543,14 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
         }
 
         if (index >= this.length) {
-            return null;
+            throw new Error(`[mobx-spine] Index ${index} is out of bounds (max ${this.length - 1}).`);
         }
 
         return this.models[index];
+    }
+
+    set backendResourceName(_value: any) {
+        throw new Error('[mobx-spine] `backendResourceName` should be a static property on the store,')
     }
 
     wrapPendingRequestCount<T>(promise: Promise<T>): Promise<T> {

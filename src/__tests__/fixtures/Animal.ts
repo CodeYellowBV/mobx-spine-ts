@@ -47,7 +47,7 @@ export class Person extends Model<PersonData> {
     relations() {
         return {
             town: Location,
-            // pets: AnimalStore,
+            pets: AnimalStore,
         };
     }
 }
@@ -198,7 +198,7 @@ export class KindResourceName extends Model<KindResourceData> {
 }
 
 export class PersonStoreResourceName extends Store<PersonData, Person> {
-    Model = KindResourceName;
+    Model = Person;
     static backendResourceName = 'person';
     api = new BinderApi();
 }

@@ -72,9 +72,11 @@ Object {
     "person": Array [
       Object {
         "id": 3,
+        "name": "",
       },
       Object {
         "id": 4,
+        "name": "",
       },
     ],
   },

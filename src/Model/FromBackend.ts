@@ -183,7 +183,24 @@ function parseOneToRelations<T>(this: Model<T>, response: Response<T>, relationN
 function parseManyToRelations<T, U extends ModelData>(this: Model<T>, response: Response<T>, relationName: string): void {
     const backendRelationName = this.constructor['toBackendAttrKey'](relationName);
     // The primary keys of the relation
-    const relationDataRaw: number[] | ModelData[] = response.data[backendRelationName];
+    let relationDataRaw: number[] | ModelData[] = response.data[backendRelationName];
+    if (!relationDataRaw) {
+
+        // Handle reverse relations if needed
+        const withKey = response.with_mapping[backendRelationName];
+
+        relationDataRaw = [];
+        if (withKey) {
+            const withData = response.with[withKey];
+            const reverseIdKey = response.with_related_name_mapping[backendRelationName];
+            for (const withObject of withData) {
+                if (withObject[reverseIdKey] === response.data['id']) {
+                    relationDataRaw.push(withObject.id);
+                }
+            }
+        }
+        response.data[backendRelationName] = relationDataRaw;
+    }
 
     // Heuristic if we have a nested relation. If it is not nested, it is a number. Otherwise it is an object
     // Relations that are empty are always not nested
@@ -213,10 +230,12 @@ function parseManyToRelations<T, U extends ModelData>(this: Model<T>, response: 
         const collectionData: object[] = response.with[backendModelName];
 
         // Get the actual array of model data for the store
-        relationData = collectionData.filter((modelData: ModelData) => {
-            const relationId = modelData.id;
-            return relationDataRaw.includes(relationId);
-        });
+        if (collectionData) {
+            relationData = collectionData.filter((modelData: ModelData) => {
+                const relationId = modelData.id;
+                return relationDataRaw.includes(relationId);
+            });
+        }
     }
 
 
