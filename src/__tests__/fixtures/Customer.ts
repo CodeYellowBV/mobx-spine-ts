@@ -18,6 +18,8 @@ export class Restaurant extends Model<RestaurantData> {
     relations() {
         return {
             chef: Cook,
+            customers: CustomerStore,
+            favouriteCustomers: CustomerStore
         };
     }
 }

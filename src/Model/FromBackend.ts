@@ -1,7 +1,7 @@
 import {Model, ModelData} from "../Model";
 import {modelResponseAdapter, ResponseAdapter, Response} from "./BinderResponse";
 import {createRelationTree} from "../Utils";
-import {isObject} from "lodash";
+import { isObject } from "lodash";
 import {Store} from "../Store";
 
 /**
@@ -90,6 +90,22 @@ function filterWithMapping<T>(response: Response<T>, backendRelationName: string
     }
 
     return filteredWithMapping;
+}
+
+function filterWithRelatedNameMapping<T>(response: Response<T>, backendRelationName: string): { [key: string]: string } {
+    const filteredWithRelatedNameMapping: { [key: string]: string } = {}
+
+    for (const withRelatedNameMappingName in response.with_related_name_mapping) {
+        if (!withRelatedNameMappingName.startsWith(`${backendRelationName}.`)) {
+            continue;
+        }
+
+        // +1 is to account for the .
+        const newKey = withRelatedNameMappingName.substr(backendRelationName.length + 1);
+        filteredWithRelatedNameMapping[newKey] = response.with_related_name_mapping[withRelatedNameMappingName];
+    }
+
+    return filteredWithRelatedNameMapping;
 }
 
 /**
@@ -192,10 +208,12 @@ function parseManyToRelations<T, U extends ModelData>(this: Model<T>, response: 
         relationDataRaw = [];
         if (withKey) {
             const withData = response.with[withKey];
-            const reverseIdKey = response.with_related_name_mapping[backendRelationName];
-            for (const withObject of withData) {
-                if (withObject[reverseIdKey] === response.data['id']) {
-                    relationDataRaw.push(withObject.id);
+            if (response.with_related_name_mapping) {
+                const reverseIdKey = response.with_related_name_mapping[backendRelationName];
+                for (const withObject of withData) {
+                    if (withObject[reverseIdKey] === response.data['id']) {
+                        relationDataRaw.push(withObject.id);
+                    }
                 }
             }
         }
@@ -240,12 +258,14 @@ function parseManyToRelations<T, U extends ModelData>(this: Model<T>, response: 
 
 
     const filteredWithMapping = filterWithMapping(response, backendRelationName);
+    const filteredWithRelatedNameMapping = filterWithRelatedNameMapping(response, backendRelationName);
 
     // And fill the store
     this[relationName].fromBackend({
         data: relationData,
         with: response.with,
         meta: {},
-        with_mapping: filteredWithMapping
+        with_mapping: filteredWithMapping,
+        with_related_name_mapping:filteredWithRelatedNameMapping 
     });
 }

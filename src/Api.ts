@@ -38,7 +38,7 @@ export interface GetResponse<T extends ModelData> {
     data: T[] | T;
     with: { [key: string]: ModelData[] };
     with_mapping: { [key: string]: string };
-    with_related_name_mapping: object;
+    with_related_name_mapping: { [key: string]: string };
     meta: { total_records?: number };
     debug: { request_id: string };
 }
