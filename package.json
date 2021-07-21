@@ -10,7 +10,6 @@
     "axios-mock-adapter": "^1.19.0",
     "ts-node": "^9.1.1",
     "typescript": "^4.2.3",
-    "mobx": "^4.9.4",
     "luxon": "1.24.1",
     "moment": "2.24.0"
   },
