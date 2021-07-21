@@ -139,6 +139,8 @@ export abstract class Model<T extends ModelData> implements WorkAround {
                 }
             };
         }
+
+        this.saveFile = this.saveFile.bind(this);
     }
 
     /***

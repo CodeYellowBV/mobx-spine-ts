@@ -3562,7 +3562,7 @@ mkdirp@^0.5.1:
   dependencies:
     minimist "^1.2.5"
 
-mobx@^4.9.4:
+mobx@^4.0.0:
   version "4.15.7"
   resolved "https://registry.yarnpkg.com/mobx/-/mobx-4.15.7.tgz#933281268c3b4658b6cf2526e872cf78ea48ab95"
   integrity sha512-X4uQvuf2zYKHVO5kRT5Utmr+J9fDnRgxWWnSqJ4oiccPTQU38YG+/O3nPmOhUy4jeHexl7XJJpWDBgEnEfp+8w==

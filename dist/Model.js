@@ -58,6 +58,7 @@ class Model {
                 }
             };
         }
+        this.saveFile = this.saveFile.bind(this);
     }
     /***
      * If we need to change things to a submodel, we can only access the data after running the constructor of the
