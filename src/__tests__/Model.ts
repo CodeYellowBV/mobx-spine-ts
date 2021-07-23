@@ -177,6 +177,23 @@ test('Initialize two-level relation', () => {
     expect(animal.kind.breed).toBeInstanceOf(Breed);
 });
 
+test('Clear relation upon receiving null as its value', () => {
+    const animal = new Animal(null, {
+        relations: ['owner.pets']
+    });
+    animal.fromBackend({
+        data: {
+            id: 1,
+            name: 'Barrie',
+            // @ts-ignore
+            owner: null
+        }
+    });
+
+    // @ts-ignore
+    expect(animal.owner.pets.models).toHaveLength(0);
+});
+
 
 test('Initialize three-level relation', () => {
     const animal = new Animal(null, {

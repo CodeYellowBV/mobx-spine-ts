@@ -161,10 +161,6 @@ function parseOneToRelations<T>(this: Model<T>, response: Response<T>, relationN
     // Case 1: The relation is None. Then, we set the relation to a new object without a pk
     // e.g. {foo: null} => this.foo = new Foo();
     if (relationDataRaw === null) {
-        const Relation = this.relations()[relationName];
-        // @ts-ignore
-        //this[relationName] = new Relation(); // TODO Pass down the neccessary relations in the options
-
         this[relationName].clear();
         return;
     }
