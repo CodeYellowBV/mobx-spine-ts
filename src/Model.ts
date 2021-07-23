@@ -226,9 +226,9 @@ export abstract class Model<T extends ModelData> implements WorkAround {
         forIn(data, (value: object, key: string) => {
             const attr = this.constructor['fromBackendAttrKey'](key);
             // parse normal attributes
-            if (this.__attributes.includes(key)) {
+            if (this.__attributes.includes(attr)) {
                 this[attr] = this.__parseAttr(attr, value);
-            } else if (this.__activeCurrentRelations.includes(key)) {
+            } else if (this.__activeCurrentRelations.includes(attr)) {
 
                 // Parse the relations
                 if (isPlainObject(value) || (isArray(value) && (isPlainObject(get(value, '[0]')) || value['length'] === 0))) {
