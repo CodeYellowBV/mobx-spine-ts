@@ -127,10 +127,10 @@ class Model {
         lodash_1.forIn(data, (value, key) => {
             const attr = this.constructor['fromBackendAttrKey'](key);
             // parse normal attributes
-            if (this.__attributes.includes(key)) {
+            if (this.__attributes.includes(attr)) {
                 this[attr] = this.__parseAttr(attr, value);
             }
-            else if (this.__activeCurrentRelations.includes(key)) {
+            else if (this.__activeCurrentRelations.includes(attr)) {
                 // Parse the relations
                 if (lodash_1.isPlainObject(value) || (lodash_1.isArray(value) && (lodash_1.isPlainObject(lodash_1.get(value, '[0]')) || value['length'] === 0))) {
                     this[attr].parse(value);
