@@ -158,6 +158,9 @@ function parseOneToRelations(response, relationName) {
         // Case 3 we have a numeric id. Now find the necessary model from the with data
         const backendModelName = response.with_mapping[backendRelationName];
         const collectionData = response.with[backendModelName];
+        if (collectionData === undefined) {
+            return;
+        }
         relationData = collectionData.find(model => model['id'] === relationDataRaw);
     }
     const filteredWithMapping = filterWithMapping(response, backendRelationName);
