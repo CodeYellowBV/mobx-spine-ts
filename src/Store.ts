@@ -39,7 +39,8 @@ interface WorkAround {
 }
 
 export class Store<T extends ModelData, U extends Model<T>> implements WorkAround {
-    models: IObservableArray<U> = observable([]);
+    // @ts-ignore
+    @observable models: IObservableArray<U> = [];
     __activeRelations: string[] = [];
     /**
      * I have no clue what this is for.

@@ -12,7 +12,8 @@ const BinderResponse_1 = require("./Model/BinderResponse");
 const lodash_1 = require("lodash");
 class Store {
     constructor(rawOptions) {
-        this.models = mobx_1.observable([]);
+        // @ts-ignore
+        this.models = [];
         this.__activeRelations = [];
         this.__pendingRequestCount = 0;
         this.__setChanged = false;
@@ -416,6 +417,9 @@ class Store {
         return Promise.all(promises);
     }
 }
+__decorate([
+    mobx_1.observable
+], Store.prototype, "models", void 0);
 __decorate([
     mobx_1.observable
 ], Store.prototype, "__pendingRequestCount", void 0);
