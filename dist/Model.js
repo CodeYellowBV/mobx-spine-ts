@@ -683,6 +683,9 @@ Model.pickFields = undefined;
 Model.omitFields = [];
 __decorate([
     mobx_1.observable
+], Model.prototype, "__pendingRequestCount", void 0);
+__decorate([
+    mobx_1.observable
 ], Model.prototype, "__fetchParams", void 0);
 __decorate([
     mobx_1.observable

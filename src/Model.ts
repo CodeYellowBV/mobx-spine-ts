@@ -109,7 +109,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
 
     __store: Store<T, Model<T>>;
 
-    __pendingRequestCount: number = 0;
+    @observable __pendingRequestCount: number = 0;
     @observable __fetchParams: object = {};
 
     @observable __changes: string[] = [];
