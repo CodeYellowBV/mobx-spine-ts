@@ -93,9 +93,10 @@ export class BinderApi implements Api {
             url: url,
             method: method,
             data: this.__formatData(method, data),
-            params: this.__formatQueryParams(method, data, options),
-            headers: headers
+            params: this.__formatQueryParams(method, data, options)
         };
+        Object.assign(config, options);
+        config.headers = headers;
         const xhr: AxiosPromise = this.axios(config);
 
         // We fork the promise tree as we want to have the error traverse to the listeners
