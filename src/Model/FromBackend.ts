@@ -233,9 +233,9 @@ function parseManyToRelations<T, U extends ModelData>(this: Model<T>, response: 
 
 
     // @ts-ignore
-    this[relationName] = new RelationStore({
-        relations: filterActiveRelations(this.__activeRelations, relationName)
-    });
+    // this[relationName] = new RelationStore({
+    //     relations: filterActiveRelations(this.__activeRelations, relationName)
+    // });
 
 
 

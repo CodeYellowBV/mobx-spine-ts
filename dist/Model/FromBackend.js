@@ -205,9 +205,9 @@ function parseManyToRelations(response, relationName) {
     // @ts-ignore
     const RelationStore = this.relations()[relationName];
     // @ts-ignore
-    this[relationName] = new RelationStore({
-        relations: filterActiveRelations(this.__activeRelations, relationName)
-    });
+    // this[relationName] = new RelationStore({
+    //     relations: filterActiveRelations(this.__activeRelations, relationName)
+    // });
     let relationData = [];
     if (isNested) {
         relationData = response.data[backendRelationName];
