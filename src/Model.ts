@@ -139,6 +139,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
                 }
             };
         }
+        this['__testingId'] = Math.floor(100000 * Math.random());
 
         this.saveFile = this.saveFile.bind(this);
     }

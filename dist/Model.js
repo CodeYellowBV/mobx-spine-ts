@@ -58,6 +58,7 @@ class Model {
                 }
             };
         }
+        this['__testingId'] = Math.floor(100000 * Math.random());
         this.saveFile = this.saveFile.bind(this);
     }
     /***

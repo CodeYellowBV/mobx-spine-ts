@@ -38,6 +38,7 @@ class Store {
                 return null;
             };
         }
+        this['__testingId'] = Math.floor(100000 * Math.random());
         const options = rawOptions || {};
         this.__repository = options.repository;
         this.__activeRelations = options.relations || [];

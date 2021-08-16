@@ -84,6 +84,8 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
                 return null;
             };
         }
+
+        this['__testingId'] = Math.floor(100000 * Math.random());
         
         const options = rawOptions || {};
         this.__repository = options.repository;
