@@ -224,14 +224,30 @@ function parseManyToRelations(response, relationName) {
             });
         }
     }
-    const filteredWithMapping = filterWithMapping(response, backendRelationName);
-    const filteredWithRelatedNameMapping = filterWithRelatedNameMapping(response, backendRelationName);
-    // And fill the store
-    this[relationName].fromBackend({
-        data: relationData,
-        with: response.with,
-        meta: {},
-        with_mapping: filteredWithMapping,
-        with_related_name_mapping: filteredWithRelatedNameMapping
-    });
+    let relevant = false;
+    for (const candidateName in response.with_mapping) {
+        if (candidateName === backendRelationName) {
+            if (response.data[backendRelationName] !== undefined) {
+                relevant = true;
+            }
+            else if (response.with[response.with_mapping[candidateName]] && response.with_related_name_mapping[backendRelationName]) {
+                relevant = true;
+            }
+        }
+        if (candidateName.startsWith(backendRelationName + '.')) {
+            relevant = true;
+        }
+    }
+    if (relevant) {
+        const filteredWithMapping = filterWithMapping(response, backendRelationName);
+        const filteredWithRelatedNameMapping = filterWithRelatedNameMapping(response, backendRelationName);
+        // And fill the store
+        this[relationName].fromBackend({
+            data: relationData,
+            with: response.with,
+            meta: {},
+            with_mapping: filteredWithMapping,
+            with_related_name_mapping: filteredWithRelatedNameMapping
+        });
+    }
 }
