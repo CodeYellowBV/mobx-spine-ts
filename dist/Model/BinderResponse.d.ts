@@ -31,16 +31,12 @@ export interface LegacyResponse<T extends ModelData> {
         [key: string]: string;
     };
 }
-interface MetaResponse {
-    data: object;
-}
 /**
  * Union of above types. This type supports both legacy interface or old interface
  */
-export declare type ResponseAdapter<T extends ModelData> = Response<T> | LegacyResponse<T> | MetaResponse;
+export declare type ResponseAdapter<T extends ModelData> = Response<T> | LegacyResponse<T>;
 /**
  * Function which takes the Response or LegacyResponse, and always returns a response
  * @param response
  */
 export declare function modelResponseAdapter<T extends ModelData>(response: ResponseAdapter<T>): Response<T>;
-export {};

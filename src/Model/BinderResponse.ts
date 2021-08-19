@@ -23,17 +23,12 @@ export interface LegacyResponse<T extends ModelData> {
     reverseRelMapping?: { [key: string]: string },
 }
 
-interface MetaResponse {
-    // This is suboptimal, but I can't find a nice easy TypeScript way of defining this...
-    data: object;
-}
-
 /**
  * Union of above types. This type supports both legacy interface or old interface
  */
 export type ResponseAdapter<T extends ModelData> =
     Response<T>
-    | LegacyResponse<T> | MetaResponse;
+    | LegacyResponse<T>;
 
 /**
  * Function which takes the Response or LegacyResponse, and always returns a response
@@ -44,24 +39,11 @@ export function modelResponseAdapter<T extends ModelData>(response: ResponseAdap
         return response as Response<T>;
     }
 
-    if (response.data) {
-        const metaData = response.data['_meta'];
-        if (metaData) {
-            return {
-                data: response.data as T,
-                with: metaData['with'] || {},
-                meta: {},
-                with_mapping: metaData['with_mapping'] || {},
-                with_related_name_mapping: metaData['with_related_name_mapping'] || {}
-            };
-        }
-    }
-
     return {
-        data: response.data as T,
+        data: response.data,
         with: (response as LegacyResponse<T>).repos || {},
         meta: {},
         with_mapping: (response as LegacyResponse<T>).relMapping || {},
         with_related_name_mapping: (response as LegacyResponse<T>).reverseRelMapping || {},
-    };
+    }
 }
