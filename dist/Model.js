@@ -679,6 +679,9 @@ class Model {
  * relation that has a different name.
  */
 Model.backendResourceName = '';
+// Mobx-spine-ts doesn't support a different primary key than id
+// but some of our code still relies on this static value being present
+Model.primaryKey = 'id';
 Model.fileFields = [];
 Model.pickFields = undefined;
 Model.omitFields = [];

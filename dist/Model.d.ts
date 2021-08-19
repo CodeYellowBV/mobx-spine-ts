@@ -55,6 +55,7 @@ export declare abstract class Model<T extends ModelData> implements WorkAround {
      * relation that has a different name.
      */
     static backendResourceName: string;
+    static primaryKey: string;
     static fileFields: string[];
     static pickFields?: string[];
     static omitFields: string[];

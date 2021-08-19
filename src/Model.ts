@@ -88,6 +88,9 @@ export abstract class Model<T extends ModelData> implements WorkAround {
      * relation that has a different name.
      */
     static backendResourceName: string = '';
+    // Mobx-spine-ts doesn't support a different primary key than id
+    // but some of our code still relies on this static value being present
+    static primaryKey: string = 'id';
 
     static fileFields: string[] = [];
     static pickFields?: string[] = undefined;
