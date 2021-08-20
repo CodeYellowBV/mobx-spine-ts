@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const Model_1 = require("../Model");
-const BinderResponse_1 = require("./BinderResponse");
-const Utils_1 = require("../Utils");
-const lodash_1 = require("lodash");
-const Store_1 = require("../Store");
+var Model_1 = require("../Model");
+var BinderResponse_1 = require("./BinderResponse");
+var Utils_1 = require("../Utils");
+var lodash_1 = require("lodash");
+var Store_1 = require("../Store");
 /**
  * The Model.fromBackend method, in a seperate file, because the relationship parsing is too damn complicated to be
  * done directly in the model
@@ -12,8 +12,8 @@ const Store_1 = require("../Store");
  * @param input
  */
 function fromBackend(input) {
-    const response = BinderResponse_1.modelResponseAdapter(input);
-    const { data } = response;
+    var response = BinderResponse_1.modelResponseAdapter(input);
+    var data = response.data;
     parseFromBackendRelations.bind(this)(response);
     if (data) {
         this.parse(data);
@@ -26,16 +26,16 @@ exports.default = fromBackend;
  * @param response
  */
 function parseFromBackendRelations(response) {
-    const relationTree = Utils_1.createRelationTree(this.__activeRelations);
+    var relationTree = Utils_1.createRelationTree(this.__activeRelations);
     if (!response.data) {
         return;
     }
-    for (const relationName in relationTree) {
-        const relations = this.relations();
+    for (var relationName in relationTree) {
+        var relations = this.relations();
         // Hack for now, Relations give a Store or Model class reference. We still need to figure how to check for this references
         // For now we initiate the relations, and then check with instanceof.  if it is a store or a model
         // @ts-ignore
-        const relation = new relations[relationName]();
+        var relation = new relations[relationName]();
         if (relation instanceof Store_1.Store) {
             parseManyToRelations.bind(this)(response, relationName);
         }
@@ -75,25 +75,25 @@ function parseFromBackendRelations(response) {
 function filterWithMapping(response, backendRelationName) {
     // For the withMapping, we need to strip the relation part of the withMapping. i.e. {"kind.breed": "animal_breed"}
     // for relation "kind", becomes {"breed": "animal_breed"}. WithMapping not belonging to this relation are ignored
-    const filteredWithMapping = {};
-    for (const withMappingName in response.with_mapping) {
-        if (!withMappingName.startsWith(`${backendRelationName}.`)) {
+    var filteredWithMapping = {};
+    for (var withMappingName in response.with_mapping) {
+        if (!withMappingName.startsWith(backendRelationName + ".")) {
             continue;
         }
         // +1 is to account for the .
-        const newKey = withMappingName.substr(backendRelationName.length + 1);
+        var newKey = withMappingName.substr(backendRelationName.length + 1);
         filteredWithMapping[newKey] = response.with_mapping[withMappingName];
     }
     return filteredWithMapping;
 }
 function filterWithRelatedNameMapping(response, backendRelationName) {
-    const filteredWithRelatedNameMapping = {};
-    for (const withRelatedNameMappingName in response.with_related_name_mapping) {
-        if (!withRelatedNameMappingName.startsWith(`${backendRelationName}.`)) {
+    var filteredWithRelatedNameMapping = {};
+    for (var withRelatedNameMappingName in response.with_related_name_mapping) {
+        if (!withRelatedNameMappingName.startsWith(backendRelationName + ".")) {
             continue;
         }
         // +1 is to account for the .
-        const newKey = withRelatedNameMappingName.substr(backendRelationName.length + 1);
+        var newKey = withRelatedNameMappingName.substr(backendRelationName.length + 1);
         filteredWithRelatedNameMapping[newKey] = response.with_related_name_mapping[withRelatedNameMappingName];
     }
     return filteredWithRelatedNameMapping;
@@ -117,13 +117,13 @@ function filterWithRelatedNameMapping(response, backendRelationName) {
  * @param relation
  */
 function filterActiveRelations(parentActiveRelations, relation) {
-    return parentActiveRelations.filter((activeRelation) => {
+    return parentActiveRelations.filter(function (activeRelation) {
         //if we do not have subrelations, do not include it
         if (activeRelation === relation) {
             return false;
         }
         return activeRelation.startsWith(relation);
-    }).map((activeRelation) => {
+    }).map(function (activeRelation) {
         // Add one to include for the .
         return activeRelation.substr(relation.length + 1);
     });
@@ -136,9 +136,9 @@ function filterActiveRelations(parentActiveRelations, relation) {
  * @param relationName
  */
 function parseOneToRelations(response, relationName) {
-    const backendRelationName = this.constructor['toBackendAttrKey'](relationName);
+    var backendRelationName = this.constructor['toBackendAttrKey'](relationName);
     // The primary key of the relation
-    const relationDataRaw = response.data[backendRelationName];
+    var relationDataRaw = response.data[backendRelationName];
     // Case 0?: The relation is not given in the response. Just ignore it.
     if (relationDataRaw === undefined) {
         return;
@@ -149,21 +149,21 @@ function parseOneToRelations(response, relationName) {
         this[relationName].clear();
         return;
     }
-    let relationData;
+    var relationData;
     if (lodash_1.isObject(relationDataRaw)) {
         // Case 2, we have a nested relation. Then we take the data directly
         relationData = relationDataRaw;
     }
     else {
         // Case 3 we have a numeric id. Now find the necessary model from the with data
-        const backendModelName = response.with_mapping[backendRelationName];
-        const collectionData = response.with[backendModelName];
+        var backendModelName = response.with_mapping[backendRelationName];
+        var collectionData = response.with[backendModelName];
         if (collectionData === undefined) {
             return;
         }
-        relationData = collectionData.find(model => model['id'] === relationDataRaw);
+        relationData = collectionData.find(function (model) { return model['id'] === relationDataRaw; });
     }
-    const filteredWithMapping = filterWithMapping(response, backendRelationName);
+    var filteredWithMapping = filterWithMapping(response, backendRelationName);
     this[relationName].fromBackend({
         data: relationData,
         with: response.with,
@@ -178,18 +178,19 @@ function parseOneToRelations(response, relationName) {
  * @param relationName
  */
 function parseManyToRelations(response, relationName) {
-    const backendRelationName = this.constructor['toBackendAttrKey'](relationName);
+    var backendRelationName = this.constructor['toBackendAttrKey'](relationName);
     // The primary keys of the relation
-    let relationDataRaw = response.data[backendRelationName];
+    var relationDataRaw = response.data[backendRelationName];
     if (!relationDataRaw) {
         // Handle reverse relations if needed
-        const withKey = response.with_mapping[backendRelationName];
+        var withKey = response.with_mapping[backendRelationName];
         relationDataRaw = [];
         if (withKey) {
-            const withData = response.with[withKey];
+            var withData = response.with[withKey];
             if (response.with_related_name_mapping) {
-                const reverseIdKey = response.with_related_name_mapping[backendRelationName];
-                for (const withObject of withData) {
+                var reverseIdKey = response.with_related_name_mapping[backendRelationName];
+                for (var _i = 0, withData_1 = withData; _i < withData_1.length; _i++) {
+                    var withObject = withData_1[_i];
                     if (withObject[reverseIdKey] === response.data['id']) {
                         relationDataRaw.push(withObject.id);
                     }
@@ -200,32 +201,32 @@ function parseManyToRelations(response, relationName) {
     }
     // Heuristic if we have a nested relation. If it is not nested, it is a number. Otherwise it is an object
     // Relations that are empty are always not nested
-    const isNested = relationDataRaw.length && lodash_1.isObject(relationDataRaw[0]);
+    var isNested = relationDataRaw.length && lodash_1.isObject(relationDataRaw[0]);
     // Initate the store
     // @ts-ignore
-    const RelationStore = this.relations()[relationName];
+    var RelationStore = this.relations()[relationName];
     // @ts-ignore
     // this[relationName] = new RelationStore({
     //     relations: filterActiveRelations(this.__activeRelations, relationName)
     // });
-    let relationData = [];
+    var relationData = [];
     if (isNested) {
         relationData = response.data[backendRelationName];
     }
     else {
         // Find the collection data that we are references
-        const backendModelName = response.with_mapping[backendRelationName];
-        const collectionData = response.with[backendModelName];
+        var backendModelName = response.with_mapping[backendRelationName];
+        var collectionData = response.with[backendModelName];
         // Get the actual array of model data for the store
         if (collectionData) {
-            relationData = collectionData.filter((modelData) => {
-                const relationId = modelData.id;
+            relationData = collectionData.filter(function (modelData) {
+                var relationId = modelData.id;
                 return relationDataRaw.includes(relationId);
             });
         }
     }
-    let relevant = false;
-    for (const candidateName in response.with_mapping) {
+    var relevant = false;
+    for (var candidateName in response.with_mapping) {
         if (candidateName === backendRelationName) {
             if (response.data[backendRelationName] !== undefined) {
                 relevant = true;
@@ -239,8 +240,8 @@ function parseManyToRelations(response, relationName) {
         }
     }
     if (relevant) {
-        const filteredWithMapping = filterWithMapping(response, backendRelationName);
-        const filteredWithRelatedNameMapping = filterWithRelatedNameMapping(response, backendRelationName);
+        var filteredWithMapping = filterWithMapping(response, backendRelationName);
+        var filteredWithRelatedNameMapping = filterWithRelatedNameMapping(response, backendRelationName);
         // And fill the store
         this[relationName].fromBackend({
             data: relationData,

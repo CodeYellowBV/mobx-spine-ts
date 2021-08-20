@@ -1,17 +1,28 @@
 "use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BinderApi = void 0;
-const axios_1 = __importDefault(require("axios"));
-const lodash_1 = require("lodash");
+var axios_1 = __importDefault(require("axios"));
+var lodash_1 = require("lodash");
 function csrfSafeMethod(method) {
     // These HTTP methods do not require CSRF protection.
     return /^(GET|HEAD|OPTIONS|TRACE)$/i.test(method);
 }
-class BinderApi {
-    constructor() {
+var BinderApi = /** @class */ (function () {
+    function BinderApi() {
         this.axios = axios_1.default.create();
         this.defaultHeaders = {};
         this.baseUrl = null;
@@ -19,35 +30,39 @@ class BinderApi {
         this.onRequestError = null;
         this.__initializeCsrfHandling();
     }
-    __initializeCsrfHandling() {
-        this.axios.interceptors.response.use(null, err => {
-            const status = lodash_1.get(err, 'response.status');
-            const statusErrCode = lodash_1.get(err, 'response.data.code');
-            const doNotRetry = lodash_1.get(err, 'response.config.doNotRetry');
+    BinderApi.prototype.__initializeCsrfHandling = function () {
+        var _this = this;
+        this.axios.interceptors.response.use(null, function (err) {
+            var status = lodash_1.get(err, 'response.status');
+            var statusErrCode = lodash_1.get(err, 'response.data.code');
+            var doNotRetry = lodash_1.get(err, 'response.config.doNotRetry');
             if (status === 403 &&
                 statusErrCode === 'CSRFFailure' &&
                 !doNotRetry) {
-                return this.fetchCsrfToken().then(() => this.axios(Object.assign(Object.assign({}, err.response.config), { doNotRetry: true })));
+                return _this.fetchCsrfToken().then(function () {
+                    return _this.axios(__assign(__assign({}, err.response.config), { doNotRetry: true }));
+                });
             }
             return Promise.reject(err);
         });
-    }
-    fetchCsrfToken() {
-        return this.get('/api/bootstrap/').then(res => {
+    };
+    BinderApi.prototype.fetchCsrfToken = function () {
+        var _this = this;
+        return this.get('/api/bootstrap/').then(function (res) {
             // This conversion is dirty because the BootstrapResponse is a
             // ... special get response
-            this.csrfToken = res.csrf_token;
+            _this.csrfToken = res.csrf_token;
         });
-    }
+    };
     /**
      * Determines the csrf token that needs to be added to the request, based upon the method, and the internally
      * set csrf token
      */
-    __csrfToken(method) {
+    BinderApi.prototype.__csrfToken = function (method) {
         return csrfSafeMethod(method)
             ? undefined
             : this.csrfToken;
-    }
+    };
     /**
      * Generic request to the binder api
      *
@@ -56,18 +71,18 @@ class BinderApi {
      * @param data
      * @param options
      */
-    __request(method, url, data, options) {
+    BinderApi.prototype.__request = function (method, url, data, options) {
         if (!options) {
             options = {};
         }
         // Validate requested url
         this.__testUrl(url);
-        const csrfToken = this.__csrfToken(method);
-        const headers = Object.assign({
+        var csrfToken = this.__csrfToken(method);
+        var headers = Object.assign({
             'Content-Type': 'application/json',
             'X-Csrftoken': csrfToken,
         }, this.defaultHeaders, options.headers);
-        const config = {
+        var config = {
             baseURL: this.baseUrl,
             url: url,
             method: method,
@@ -76,24 +91,24 @@ class BinderApi {
         };
         Object.assign(config, options);
         config.headers = headers;
-        const xhr = this.axios(config);
+        var xhr = this.axios(config);
         // We fork the promise tree as we want to have the error traverse to the listeners
         if (this.onRequestError && options.skipRequestError !== true) {
             xhr.catch(this.onRequestError);
         }
-        const onSuccess = options.skipFormatter === true
-            ? foo => foo
+        var onSuccess = options.skipFormatter === true
+            ? function (foo) { return foo; }
             : this.__responseFormatter;
         return xhr.then(onSuccess);
-    }
-    parseBackendValidationErrors(response) {
-        const valErrors = lodash_1.get(response, 'data.errors');
+    };
+    BinderApi.prototype.parseBackendValidationErrors = function (response) {
+        var valErrors = lodash_1.get(response, 'data.errors');
         if (response['status'] === 400 && valErrors) {
             return valErrors;
         }
         return null;
-    }
-    buildFetchModelParams(model) {
+    };
+    BinderApi.prototype.buildFetchModelParams = function (model) {
         return {
             // TODO: I really dislike that this is comma separated and not an array.
             // We should fix this in the Binder API.
@@ -101,7 +116,7 @@ class BinderApi {
                 .map(model.constructor['toBackendAttrKey'])
                 .join(',') || null,
         };
-    }
+    };
     /**
      * Format the request data that is send to the server, based upon the provided data, and the http method
      *
@@ -110,13 +125,13 @@ class BinderApi {
      * @param method
      * @param data
      */
-    __formatData(method, data) {
+    BinderApi.prototype.__formatData = function (method, data) {
         // in a get method, we have never data
         if (method.toLowerCase() === 'get') {
             return undefined;
         }
         return data || undefined;
-    }
+    };
     /**
      * Returns the query params. For GET request, use the provided data. For POST request use the options
      *
@@ -124,34 +139,35 @@ class BinderApi {
      * @param data
      * @param options
      */
-    __formatQueryParams(method, data, options) {
+    BinderApi.prototype.__formatQueryParams = function (method, data, options) {
         if (method.toLowerCase() === 'get' && data) {
             return data;
         }
         return options.params;
-    }
+    };
     /**
      * Formats the raw response (including http headers, status, etc)
      *
      * @param res
      */
-    __responseFormatter(res) {
+    BinderApi.prototype.__responseFormatter = function (res) {
         // Formats the axios response to a data object
         return res.data;
-    }
+    };
     /**
      * Tests if the url is ok, and throws an error if an error is found
      * @param url
      */
-    __testUrl(url) {
+    BinderApi.prototype.__testUrl = function (url) {
         if (!url.endsWith('/')) {
-            throw new Error(`Binder does not accept urls that do not have a trailing slash: ${url}`);
+            throw new Error("Binder does not accept urls that do not have a trailing slash: " + url);
         }
-    }
-    fetchModel({ url, data, requestOptions }) {
-        return this.get(url, data, requestOptions).then((rawRes) => {
+    };
+    BinderApi.prototype.fetchModel = function (_a) {
+        var url = _a.url, data = _a.data, requestOptions = _a.requestOptions;
+        return this.get(url, data, requestOptions).then(function (rawRes) {
             // This will go wrong if requestOptions contains skipFormatter
-            const res = rawRes;
+            var res = rawRes;
             return {
                 data: res.data,
                 repos: res.with,
@@ -159,61 +175,64 @@ class BinderApi {
                 reverseRelMapping: res.with_related_name_mapping,
             };
         });
-    }
-    saveModel({ url, data, isNew, requestOptions }) {
-        const method = isNew ? 'post' : 'patch';
+    };
+    BinderApi.prototype.saveModel = function (_a) {
+        var _this = this;
+        var url = _a.url, data = _a.data, isNew = _a.isNew, requestOptions = _a.requestOptions;
+        var method = isNew ? 'post' : 'patch';
         return this[method](url, data, requestOptions)
-            .then((newData) => {
+            .then(function (newData) {
             // This won't go well if the skipFormatter parameter is used
             return { data: newData };
         })
-            .catch(err => {
+            .catch(function (err) {
             if (err.response) {
-                err.valErrors = this.parseBackendValidationErrors(err.response);
+                err.valErrors = _this.parseBackendValidationErrors(err.response);
             }
             throw err;
         });
-    }
-    saveAllModels(params) {
+    };
+    BinderApi.prototype.saveAllModels = function (params) {
+        var _this = this;
         return this.put(params.url, {
             data: params.data.data,
             with: params.data.relations,
         }, params.requestOptions)
-            .then((res) => {
+            .then(function (res) {
             if (res['idmap']) {
                 params.model.__parseNewIds(res['idmap']);
             }
             return res;
         })
-            .catch(err => {
+            .catch(function (err) {
             if (err.response) {
-                err.valErrors = this.parseBackendValidationErrors(err.response);
+                err.valErrors = _this.parseBackendValidationErrors(err.response);
             }
             throw err;
         });
-    }
-    get(url, data, options) {
+    };
+    BinderApi.prototype.get = function (url, data, options) {
         return this.__request('get', url, data, options);
-    }
-    post(url, data, options) {
+    };
+    BinderApi.prototype.post = function (url, data, options) {
         return this.__request('post', url, data, options);
-    }
-    put(url, data, options) {
+    };
+    BinderApi.prototype.put = function (url, data, options) {
         return this.__request('put', url, data, options);
-    }
-    patch(url, data, options) {
+    };
+    BinderApi.prototype.patch = function (url, data, options) {
         return this.__request('patch', url, data, options);
-    }
-    delete(url, data, options) {
+    };
+    BinderApi.prototype.delete = function (url, data, options) {
         return this.__request('delete', url, data, options);
-    }
-    deleteModel(options) {
+    };
+    BinderApi.prototype.deleteModel = function (options) {
         // TODO: kind of silly now, but we'll probably want better error handling soon.
         return this.delete(options.url, null, options.requestOptions);
-    }
-    buildFetchStoreParams(store) {
-        const offset = store.getPageOffset();
-        const limit = store.__state.limit;
+    };
+    BinderApi.prototype.buildFetchStoreParams = function (store) {
+        var offset = store.getPageOffset();
+        var limit = store.__state.limit;
         return {
             with: store.__activeRelations
                 .map(store.Model['toBackendAttrKey'])
@@ -222,11 +241,11 @@ class BinderApi {
             // Hide offset if zero so the request looks cleaner in DevTools.
             offset: offset || null,
         };
-    }
-    fetchStore(options) {
-        return this.get(options.url, options.data, options.requestOptions).then((rawRes) => {
+    };
+    BinderApi.prototype.fetchStore = function (options) {
+        return this.get(options.url, options.data, options.requestOptions).then(function (rawRes) {
             // This won't go well if the skipFormatting option is used
-            const res = rawRes;
+            var res = rawRes;
             return {
                 response: res,
                 data: res.data,
@@ -236,6 +255,7 @@ class BinderApi {
                 totalRecords: res.meta.total_records,
             };
         });
-    }
-}
+    };
+    return BinderApi;
+}());
 exports.BinderApi = BinderApi;

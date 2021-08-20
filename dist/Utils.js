@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createRelationTree = exports.forNestedRelations = exports.relationsToNestedKeys = exports.snakeToCamel = exports.camelToSnake = void 0;
 // lodash's `snakeCase` method removes dots from the string; this breaks mobx-spine
 function camelToSnake(s) {
-    return s.replace(/([A-Z])/g, $1 => '_' + $1.toLowerCase());
+    return s.replace(/([A-Z])/g, function ($1) { return '_' + $1.toLowerCase(); });
 }
 exports.camelToSnake = camelToSnake;
 // lodash's `camelCase` method removes dots from the string; this breaks mobx-spine
@@ -11,17 +11,17 @@ function snakeToCamel(s) {
     if (s.startsWith('_')) {
         return s;
     }
-    return s.replace(/_\w/g, m => m[1].toUpperCase());
+    return s.replace(/_\w/g, function (m) { return m[1].toUpperCase(); });
 }
 exports.snakeToCamel = snakeToCamel;
 function relationsToNestedKeys(relations) {
-    const nestedRelations = {};
-    relations.forEach(rel => {
-        let current = nestedRelations;
-        const components = rel.split('.');
-        const len = components.length;
+    var nestedRelations = {};
+    relations.forEach(function (rel) {
+        var current = nestedRelations;
+        var components = rel.split('.');
+        var len = components.length;
         for (var i = 0; i < len; ++i) {
-            const head = components[i];
+            var head = components[i];
             if (current[head] === undefined) {
                 current[head] = {};
             }
@@ -33,10 +33,10 @@ function relationsToNestedKeys(relations) {
 exports.relationsToNestedKeys = relationsToNestedKeys;
 // Use output of relationsToNestedKeys to iterate each relation, fn is called on each model and store.
 function forNestedRelations(model, nestedRelations, fn) {
-    Object.keys(nestedRelations).forEach(key => {
+    Object.keys(nestedRelations).forEach(function (key) {
         if (Object.keys(nestedRelations[key]).length > 0) {
             if (model[key].forEach) {
-                model[key].forEach(m => {
+                model[key].forEach(function (m) {
                     forNestedRelations(m, nestedRelations[key], fn);
                 });
                 fn(model);
@@ -60,7 +60,7 @@ exports.forNestedRelations = forNestedRelations;
  * @param relations
  */
 function createRelationTree(relations) {
-    const tree = {};
+    var tree = {};
     /**
      * Recursively insert the list of subrelations to the tree
      *
@@ -71,13 +71,13 @@ function createRelationTree(relations) {
         if (subRelations.length === 0) {
             return;
         }
-        const headRelation = subRelations.shift();
+        var headRelation = subRelations.shift();
         if (!(headRelation in tree)) {
             tree[headRelation] = {};
         }
         insertIntoTree(tree[headRelation], subRelations);
     }
-    relations.forEach(relation => insertIntoTree(tree, relation.split('.')));
+    relations.forEach(function (relation) { return insertIntoTree(tree, relation.split('.')); });
     return tree;
 }
 exports.createRelationTree = createRelationTree;
