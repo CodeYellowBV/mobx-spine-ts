@@ -4,39 +4,39 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Casts = exports.configureDateLib = void 0;
-var moment_1 = __importDefault(require("moment"));
-var luxon_1 = require("luxon");
-var DATE_LIB = 'moment';
-var SUPPORTED_DATE_LIBS = ['moment', 'luxon'];
+const moment_1 = __importDefault(require("moment"));
+const luxon_1 = require("luxon");
+let DATE_LIB = 'moment';
+const SUPPORTED_DATE_LIBS = ['moment', 'luxon'];
 function configureDateLib(dateLib) {
     if (!SUPPORTED_DATE_LIBS.includes(dateLib)) {
-        throw new Error("[mobx-spine] Unsupported date lib '" + dateLib + "'. Supported: " + SUPPORTED_DATE_LIBS.map(function (dateLib) { return "'" + dateLib + "'"; }).join(', '));
+        throw new Error(`[mobx-spine] Unsupported date lib '${dateLib}'. Supported: ${SUPPORTED_DATE_LIBS.map((dateLib) => "'" + dateLib + "'").join(', ')}`);
     }
     DATE_LIB = dateLib;
 }
 exports.configureDateLib = configureDateLib;
 function checkMomentInstance(attr, value) {
     if (!moment_1.default.isMoment(value)) {
-        throw new Error("[mobx-spine] Attribute '" + attr + "' is not a moment instance.");
+        throw new Error(`[mobx-spine] Attribute '${attr}' is not a moment instance.`);
     }
 }
 function checkLuxonDateTime(attr, value) {
     if (!luxon_1.DateTime.isDateTime(value)) {
-        throw new Error("[mobx-spine] Attribute '" + attr + "' is not a luxon instance.");
+        throw new Error(`[mobx-spine] Attribute '${attr}' is not a luxon instance.`);
     }
 }
-var LUXON_DATE_FORMAT = 'yyyy-LL-dd';
-var LUXON_DATETIME_FORMAT = "yyyy'-'LL'-'dd'T'HH':'mm':'ssZZ";
-var CastsClass = /** @class */ (function () {
-    function CastsClass() {
+const LUXON_DATE_FORMAT = 'yyyy-LL-dd';
+const LUXON_DATETIME_FORMAT = "yyyy'-'LL'-'dd'T'HH':'mm':'ssZZ";
+class CastsClass {
+    constructor() {
         this.momentDate = {
-            parse: function (_attr, value) {
+            parse(_attr, value) {
                 if (value === null || value === undefined) {
                     return null;
                 }
                 return moment_1.default(value, 'YYYY-MM-DD');
             },
-            toJS: function (attr, value) {
+            toJS(attr, value) {
                 if (value === null || value === undefined) {
                     return null;
                 }
@@ -46,13 +46,13 @@ var CastsClass = /** @class */ (function () {
             dateLib: 'moment',
         };
         this.momentDatetime = {
-            parse: function (_attr, value) {
+            parse(_attr, value) {
                 if (value === null) {
                     return null;
                 }
                 return moment_1.default(value);
             },
-            toJS: function (attr, value) {
+            toJS(attr, value) {
                 if (value === null) {
                     return null;
                 }
@@ -62,13 +62,13 @@ var CastsClass = /** @class */ (function () {
             dateLib: 'moment',
         };
         this.luxonDate = {
-            parse: function (_attr, value) {
+            parse(_attr, value) {
                 if (value === null || value === undefined) {
                     return null;
                 }
                 return luxon_1.DateTime.fromISO(value);
             },
-            toJS: function (attr, value) {
+            toJS(attr, value) {
                 if (value === null || value === undefined) {
                     return null;
                 }
@@ -78,13 +78,13 @@ var CastsClass = /** @class */ (function () {
             dateLib: 'luxon',
         };
         this.luxonDatetime = {
-            parse: function (_attr, value) {
+            parse(_attr, value) {
                 if (value === null) {
                     return null;
                 }
                 return luxon_1.DateTime.fromISO(value);
             },
-            toJS: function (attr, value) {
+            toJS(attr, value) {
                 if (value === null) {
                     return null;
                 }
@@ -94,49 +94,29 @@ var CastsClass = /** @class */ (function () {
             dateLib: 'luxon',
         };
         this.date = {
-            parse: function () {
-                var _a;
-                var args = [];
-                for (var _i = 0; _i < arguments.length; _i++) {
-                    args[_i] = arguments[_i];
-                }
-                return (_a = exports.Casts[DATE_LIB + "Date"]).parse.apply(_a, args);
+            parse(...args) {
+                return exports.Casts[`${DATE_LIB}Date`].parse(...args);
             },
-            toJS: function () {
-                var _a;
-                var args = [];
-                for (var _i = 0; _i < arguments.length; _i++) {
-                    args[_i] = arguments[_i];
-                }
-                return (_a = exports.Casts[DATE_LIB + "Date"]).toJS.apply(_a, args);
+            toJS(...args) {
+                return exports.Casts[`${DATE_LIB}Date`].toJS(...args);
             },
             get dateLib() {
                 return DATE_LIB;
             },
         };
         this.datetime = {
-            parse: function () {
-                var _a;
-                var args = [];
-                for (var _i = 0; _i < arguments.length; _i++) {
-                    args[_i] = arguments[_i];
-                }
-                return (_a = exports.Casts[DATE_LIB + "Datetime"]).parse.apply(_a, args);
+            parse(...args) {
+                return exports.Casts[`${DATE_LIB}Datetime`].parse(...args);
             },
-            toJS: function () {
-                var _a;
-                var args = [];
-                for (var _i = 0; _i < arguments.length; _i++) {
-                    args[_i] = arguments[_i];
-                }
-                return (_a = exports.Casts[DATE_LIB + "Datetime"]).toJS.apply(_a, args);
+            toJS(...args) {
+                return exports.Casts[`${DATE_LIB}Datetime`].toJS(...args);
             },
             get dateLib() {
                 return DATE_LIB;
             },
         };
     }
-    CastsClass.prototype.enum = function (expectedValues) {
+    enum(expectedValues) {
         function checkExpectedValues(attr, value) {
             if (value === null) {
                 return null;
@@ -145,17 +125,16 @@ var CastsClass = /** @class */ (function () {
                 return value;
             }
             else {
-                throw new Error("Value set to attribute '" + attr + "', " + JSON.stringify(value) + ", is not one of the allowed enum: " + JSON.stringify(expectedValues));
+                throw new Error(`Value set to attribute '${attr}', ${JSON.stringify(value)}, is not one of the allowed enum: ${JSON.stringify(expectedValues)}`);
             }
         }
         return {
             parse: checkExpectedValues,
             toJS: checkExpectedValues,
         };
-    };
+    }
     ;
-    return CastsClass;
-}());
+}
 /**
  * The `Cast`s provided by mobx-spine. See the documentation of `Cast` for more
  * information. Applications are free to create and use their own casts.
