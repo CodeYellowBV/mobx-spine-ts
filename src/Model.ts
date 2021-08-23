@@ -30,6 +30,8 @@ export type ParseData<T> = { [P in keyof T]?: any };
 // (camelCase vs snake_case). For now, I will only list the id...
 export type BackendData = { id?: number };
 
+export type CopyOptions = { copyChanges: boolean };
+
 export interface ToBackendParams<T extends ModelData> {
     data?: T;
     mapData?: (x: BackendData) => BackendData;
@@ -189,6 +191,15 @@ export abstract class Model<T extends ModelData> implements WorkAround {
             this.__parseRelations(options.relations);
         }
 
+        // The model will automatically be assigned a negative id, the id will still be overridden if it is supplied in the data
+        this.assignInternalId();
+
+        // We want our id to remain negative on a clear, only if it was not created with the id set to null
+        // which is usually the case when the object is a related model in which case we want the id to be reset to null
+        if ((data && data['id'] !== null) || !data) {
+            this.__originalAttributes['id'] = this['id'];
+        }
+
         // Parse the initial data
         if (data) {
             this.parse(data);
@@ -296,8 +307,8 @@ export abstract class Model<T extends ModelData> implements WorkAround {
         return toJS(value);
     }
 
-    toJS(): { [key: string]: any } {
-        const output = {};
+    toJS(): ParseData<T> {
+        const output: ParseData<T> = {};
         this.__attributes.forEach(attr => {
             output[attr] = this.__toJSAttr(attr, this[attr]);
         });
@@ -407,6 +418,22 @@ export abstract class Model<T extends ModelData> implements WorkAround {
         return Promise.all(promises);
     }
 
+    /**
+     * Validates a model and relations by sending a save request to binder with the validate header set. Binder will return the validation
+     * errors without actually committing the save
+     *
+     * @param options - same as for a normal saveAll request, example {relations:['foo'], onlyChanges: true}
+     */
+    validateAll(options: SaveAllParams<T> = {}){
+        // Add the validate option
+        if (options.params){
+            options.params.validate = true
+        } else {
+            options.params = { validate: true };
+        }
+        return this.saveAll(options).catch((err)=>{throw err});
+    }
+
     @action
     saveAll(options: SaveAllParams<T> = {}): Promise<object> {
         this.clearValidationErrors();
@@ -424,28 +451,30 @@ export abstract class Model<T extends ModelData> implements WorkAround {
                 requestOptions: omit(options, 'relations', 'data', 'mapData'),
             })
             .then(action(res => {
-                this.saveFromBackend(res);
-                this.clearUserFieldChanges();
-
-                forNestedRelations(this, relationsToNestedKeys(options.relations || []), relation => {
-                    if (relation instanceof Model) {
-                        relation.clearUserFieldChanges();
-                    } else {
-                        relation.clearSetChanges();
-                    }
-                });
-
-                return this.saveAllFiles(relationsToNestedKeys(options.relations || [])).then(() => {
-                    this.clearUserFileChanges();
+                // Don't update the models if we are only validating them
+                if (!options.params || !options.params.validate) {
+                    this.saveFromBackend(res);
+                    this.clearUserFieldChanges();
 
                     forNestedRelations(this, relationsToNestedKeys(options.relations || []), relation => {
                         if (relation instanceof Model) {
-                            relation.clearUserFileChanges();
+                            relation.clearUserFieldChanges();
+                        } else {
+                            relation.clearSetChanges();
                         }
                     });
+                    return this.saveAllFiles(relationsToNestedKeys(options.relations || [])).then(() => {
+                        this.clearUserFileChanges();
 
-                    return res;
-                });
+                        forNestedRelations(this, relationsToNestedKeys(options.relations || []), relation => {
+                            if (relation instanceof Model) {
+                                relation.clearUserFileChanges();
+                            }
+                        });
+
+                        return res;
+                    });
+                }
             }))
             .catch(
                 action(err => {
@@ -477,6 +506,22 @@ export abstract class Model<T extends ModelData> implements WorkAround {
         });
     }
 
+    /**
+     * Validates a model by sending a save request to binder with the validate header set. Binder will return the validation
+     * errors without actually committing the save
+     *
+     * @param options - same as for a normal save request, example: {onlyChanges: true}
+     */
+    validate(options: SaveParams<T> = {}) {
+        // Add the validate parameter
+        if (options.params){
+            options.params.validate = true
+        } else {
+            options.params = { validate: true };
+        }
+        return this.save(options).catch((err)=>{throw err});
+    }
+
     @action
     save(options: SaveParams<T> = {}) {
         this.clearValidationErrors();
@@ -494,15 +539,18 @@ export abstract class Model<T extends ModelData> implements WorkAround {
                 requestOptions: omit(options, 'url', 'data', 'mapData')
             })
             .then(action(res => {
-                this.saveFromBackend({
-                    ...res,
-                    data: omit(res.data, this.fileFields().map(camelToSnake)),
-                });
-                this.clearUserFieldChanges();
-                return this.saveFiles().then(() => {
-                    this.clearUserFileChanges();
-                    return Promise.resolve(res);
-                });
+                // Don't update the model when we only want to validate
+                if (!options.params || !options.params.validate) {
+                    this.saveFromBackend({
+                        ...res,
+                        data: omit(res.data, this.fileFields().map(camelToSnake)),
+                    });
+                    this.clearUserFieldChanges();
+                    return this.saveFiles().then(() => {
+                        this.clearUserFileChanges();
+                        return Promise.resolve(res);
+                    });
+                }
             }))
             .catch(
                 action(err => {
@@ -633,12 +681,25 @@ export abstract class Model<T extends ModelData> implements WorkAround {
         return -parseInt(this.cid.replace('m', ''));
     }
 
+    /**
+     * Get InternalId returns the id of a model or a negative id if the id is not set
+     * @returns the id of a model or a negative id if the id is not set
+     */
     getInternalId(): number {
-        if (this.isNew) {
+        if (!this['id']) {
             return this.getNegativeId();
         }
         // @ts-ignore
         return this.id;
+    }
+
+    /**
+     * Gives the model the internal id, meaning that it will keep the set id of the model or it will receive a negative
+     * id if the id is null. This is useful if you have a new model that you want to give an id so that it can be
+     * referred to in a relation.
+     */
+    assignInternalId() {
+        this['id'] = this.getInternalId();
     }
 
     __getApi(): Api {
@@ -715,7 +776,13 @@ export abstract class Model<T extends ModelData> implements WorkAround {
     @action
     clear() {
         forIn(this.__originalAttributes, (value: any, key: string) => {
-            this[key] = value;
+            // If it is our primary key, and the primary key is negative, we generate a new negative pk, else we set it
+            // to the value
+            if (key === this['id'] && value < 0){
+                this[key] = -1 * uniqueId();
+            } else {
+                this[key] = value;
+            }
         });
 
         this.__activeCurrentRelations.forEach(currentRel => {
@@ -836,7 +903,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
         activeRelations.forEach((activeRelation: string) => {
             // If the activeRelation is null, tis relation is already defined by another activerelations.
             // e.g. town.restaurants.chef && town
-            if (activeRelation === null) {
+            if (activeRelation === null || !!this[activeRelation]) {
                 return;
             }
 
@@ -862,9 +929,10 @@ export abstract class Model<T extends ModelData> implements WorkAround {
 
         });
 
-
-        extendObservable(this,
-            mapValues(relationModels, (otherRelationNames: string[], relationName: string) => {
+        // extendObservable where we omit the fields that are already created from other relations
+        extendObservable(this, mapValues(
+            omit(relationModels, Object.keys(relationModels).filter(rel => !!this[rel])), 
+            (otherRelationNames: string[], relationName: string) => {
                     const RelationModel = relations[relationName];
                     if (!RelationModel) {
                         throw Error(`Specified relation "${relationName}" does not exist on model.`);
@@ -874,29 +942,146 @@ export abstract class Model<T extends ModelData> implements WorkAround {
                         // @ts-ignore
                         return new RelationModel(options);
                     }
+                    // If we have a related model, we want to force the related model to have id null as that means there is no model set
                     // @ts-ignore
-                    return new RelationModel(null, options);
+                    return new RelationModel({ id: null }, options);
                 }
             )
         );
     }
 
+    /**
+     * Makes this model a copy of the specified model
+     * or returns a copy of the current model when no model to copy is given
+     * It also clones the changes that were in the specified model.
+     * Cloning the changes requires recursion over all related models that have changes or are related to a model with changes.
+     * Cloning
+     *
+     * @param source The model that should be copied
+     * @param options Options, {copyChanges - only copy the changed attributes, requires recursion over all related objects with changes}
+     */
+    copy(rawSource: CopyOptions | Model<T> | undefined = undefined, options: CopyOptions = { copyChanges: true }): Model<T> {
+
+        let copiedModel: Model<T>;
+        let source: Model<T> | undefined;
+
+        // If our source is not a model it is 'probably' the options
+        if (rawSource !== undefined && !(rawSource instanceof Model)){
+            options = rawSource;
+            source = undefined;
+        } else {
+            source = rawSource as Model<T> | undefined;
+        }
+
+        // Make sure that we have the correct model
+        if (source === undefined){
+            source = this;
+            // @ts-ignore
+            copiedModel = new source.constructor({relations: source.__activeRelations});
+        } else if (this.constructor !== source.constructor) {
+            // @ts-ignore
+            copiedModel = new source.constructor({relations: source.__activeRelations});
+        } else {
+            copiedModel = this;
+        }
+
+        const copyChanges = options.copyChanges;
+
+        // Maintain the relations after copy
+        // this.__activeRelations = source.__activeRelations;
+
+        copiedModel.__parseRelations(source.__activeRelations);
+        // Copy all fields and values from the specified model
+        copiedModel.parse(source.toJS());
+
+
+        // Set only the changed attributes
+        if (copyChanges) {
+            copiedModel.__copyChanges(source)
+        }
+
+        return copiedModel;
+    }
+
+    /**
+     * Goes over model and all related models to set the changed values and notify the store
+     *
+     * @param source - the model to copy
+     * @param store  - the store of the current model, to setChanged if there are changes
+     * @private
+     */
+    __copyChanges(source: Model<T>, store?: Store<T, Model<T>>) {
+        // Maintain the relations after copy
+        this.__parseRelations(source.__activeRelations);
+
+        // Copy all changed fields and notify the store that there are changes
+        if (source.__changes.length > 0) {
+            if (store) {
+                store.__setChanged = true;
+            } else if (this.__store) {
+                this.__store.__setChanged = true;
+            }
+
+            source.__changes.forEach((changedAttribute) => {
+                this.setInput(changedAttribute, source[changedAttribute])
+            })
+        }
+        // Undefined safety
+        if (source.__activeCurrentRelations.length > 0) {
+            // Set the changes for all related models with changes
+            source.__activeCurrentRelations.forEach((relation) => {
+                if (relation && source[relation]) {
+                    if (this[relation]) {
+                        if (source[relation].hasUserChanges) {
+                            if (source[relation].models) { // If related item is a store
+                                if (source[relation].models.length === this[relation].models.length) { // run only if the store shares the same amount of items
+                                    // Check if the store has some changes
+                                    this[relation].__setChanged = source[relation].__setChanged;
+                                    // Set the changes for all related models with changes
+                                    source[relation].models.forEach((relatedModel: Model<any>, index: number) => {
+                                        this[relation].models[index].__copyChanges(relatedModel, this[relation]);
+                                    });
+                                }
+                            } else {
+                                // Set the changes for the related model
+                                this[relation].__copyChanges(source[relation], undefined)
+                            }
+                        }
+                    } else {
+                        // Related object not in relations of the model we are copying
+                        console.warn(`Found related object ${source.constructor['backendResourceName']} with relation ${relation},
+                        which is not defined in the relations of the model you are copying. Skipping ${relation}.`)
+                    }
+                }
+            });
+        }
+    }
+
     @action
     fromBackend = baseFromBackend;
 
+    /**
+     * A model is considered new if it does not have an id, or if the id is a negative integer.
+     * @returns {boolean}   True if the model id is not set or a negative integer
+     */
     @computed
     get isNew(): boolean {
         // @ts-ignore
-        return !this.id;
+        return !this.id || this.id < 0;
     }
 
+    /**
+     * The get url returns the url for a model., it appends the id if there is one. If the model is new it should not
+     * append an id.
+     *
+     * @returns {string}  the url for a model
+     */
     @computed
     get url(): string {
         // @ts-ignore
         const id = this.id;
-        return `${result(this, 'urlRoot')}${id ? `${id}/` : ''}`;
+        return `${result(this, 'urlRoot')}${!this.isNew ? `${id}/` : ''}`;
     }
-
 
     protected relations(): { [name: string]: StoreOrModelConstructor } {
         return {};
