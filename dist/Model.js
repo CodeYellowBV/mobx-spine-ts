@@ -96,6 +96,13 @@ class Model {
         if (options.relations) {
             this.__parseRelations(options.relations);
         }
+        // The model will automatically be assigned a negative id, the id will still be overridden if it is supplied in the data
+        this.assignInternalId();
+        // We want our id to remain negative on a clear, only if it was not created with the id set to null
+        // which is usually the case when the object is a related model in which case we want the id to be reset to null
+        if ((data && data['id'] !== null) || !data) {
+            this.__originalAttributes['id'] = this['id'];
+        }
         // Parse the initial data
         if (data) {
             this.parse(data);
@@ -270,6 +277,22 @@ class Model {
         }
         return Promise.all(promises);
     }
+    /**
+     * Validates a model and relations by sending a save request to binder with the validate header set. Binder will return the validation
+     * errors without actually committing the save
+     *
+     * @param options - same as for a normal saveAll request, example {relations:['foo'], onlyChanges: true}
+     */
+    validateAll(options = {}) {
+        // Add the validate option
+        if (options.params) {
+            options.params.validate = true;
+        }
+        else {
+            options.params = { validate: true };
+        }
+        return this.saveAll(options).catch((err) => { throw err; });
+    }
     saveAll(options = {}) {
         this.clearValidationErrors();
         return this.wrapPendingRequestCount(this.__getApi()
@@ -285,25 +308,28 @@ class Model {
             requestOptions: lodash_1.omit(options, 'relations', 'data', 'mapData'),
         })
             .then(mobx_1.action(res => {
-            this.saveFromBackend(res);
-            this.clearUserFieldChanges();
-            Utils_1.forNestedRelations(this, Utils_1.relationsToNestedKeys(options.relations || []), relation => {
-                if (relation instanceof Model) {
-                    relation.clearUserFieldChanges();
-                }
-                else {
-                    relation.clearSetChanges();
-                }
-            });
-            return this.saveAllFiles(Utils_1.relationsToNestedKeys(options.relations || [])).then(() => {
-                this.clearUserFileChanges();
+            // Don't update the models if we are only validating them
+            if (!options.params || !options.params.validate) {
+                this.saveFromBackend(res);
+                this.clearUserFieldChanges();
                 Utils_1.forNestedRelations(this, Utils_1.relationsToNestedKeys(options.relations || []), relation => {
                     if (relation instanceof Model) {
-                        relation.clearUserFileChanges();
+                        relation.clearUserFieldChanges();
+                    }
+                    else {
+                        relation.clearSetChanges();
                     }
                 });
-                return res;
-            });
+                return this.saveAllFiles(Utils_1.relationsToNestedKeys(options.relations || [])).then(() => {
+                    this.clearUserFileChanges();
+                    Utils_1.forNestedRelations(this, Utils_1.relationsToNestedKeys(options.relations || []), relation => {
+                        if (relation instanceof Model) {
+                            relation.clearUserFileChanges();
+                        }
+                    });
+                    return res;
+                });
+            }
         }))
             .catch(mobx_1.action(err => {
             if (err.valErrors) {
@@ -328,6 +354,22 @@ class Model {
             rel.__parseNewIds(idMaps);
         });
     }
+    /**
+     * Validates a model by sending a save request to binder with the validate header set. Binder will return the validation
+     * errors without actually committing the save
+     *
+     * @param options - same as for a normal save request, example: {onlyChanges: true}
+     */
+    validate(options = {}) {
+        // Add the validate parameter
+        if (options.params) {
+            options.params.validate = true;
+        }
+        else {
+            options.params = { validate: true };
+        }
+        return this.save(options).catch((err) => { throw err; });
+    }
     save(options = {}) {
         this.clearValidationErrors();
         return this.wrapPendingRequestCount(this.__getApi()
@@ -343,12 +385,15 @@ class Model {
             requestOptions: lodash_1.omit(options, 'url', 'data', 'mapData')
         })
             .then(mobx_1.action(res => {
-            this.saveFromBackend(Object.assign(Object.assign({}, res), { data: lodash_1.omit(res.data, this.fileFields().map(Utils_1.camelToSnake)) }));
-            this.clearUserFieldChanges();
-            return this.saveFiles().then(() => {
-                this.clearUserFileChanges();
-                return Promise.resolve(res);
-            });
+            // Don't update the model when we only want to validate
+            if (!options.params || !options.params.validate) {
+                this.saveFromBackend(Object.assign(Object.assign({}, res), { data: lodash_1.omit(res.data, this.fileFields().map(Utils_1.camelToSnake)) }));
+                this.clearUserFieldChanges();
+                return this.saveFiles().then(() => {
+                    this.clearUserFileChanges();
+                    return Promise.resolve(res);
+                });
+            }
         }))
             .catch(mobx_1.action(err => {
             if (err.valErrors) {
@@ -460,12 +505,24 @@ class Model {
     getNegativeId() {
         return -parseInt(this.cid.replace('m', ''));
     }
+    /**
+     * Get InternalId returns the id of a model or a negative id if the id is not set
+     * @returns the id of a model or a negative id if the id is not set
+     */
     getInternalId() {
-        if (this.isNew) {
+        if (!this['id']) {
             return this.getNegativeId();
         }
         // @ts-ignore
         return this.id;
+    }
+    /**
+     * Gives the model the internal id, meaning that it will keep the set id of the model or it will receive a negative
+     * id if the id is null. This is useful if you have a new model that you want to give an id so that it can be
+     * referred to in a relation.
+     */
+    assignInternalId() {
+        this['id'] = this.getInternalId();
     }
     __getApi() {
         if (!this.api) {
@@ -516,7 +573,14 @@ class Model {
     }
     clear() {
         lodash_1.forIn(this.__originalAttributes, (value, key) => {
-            this[key] = value;
+            // If it is our primary key, and the primary key is negative, we generate a new negative pk, else we set it
+            // to the value
+            if (key === this['id'] && value < 0) {
+                this[key] = -1 * lodash_1.uniqueId();
+            }
+            else {
+                this[key] = value;
+            }
         });
         this.__activeCurrentRelations.forEach(currentRel => {
             this[currentRel].clear();
@@ -605,7 +669,7 @@ class Model {
         activeRelations.forEach((activeRelation) => {
             // If the activeRelation is null, tis relation is already defined by another activerelations.
             // e.g. town.restaurants.chef && town
-            if (activeRelation === null) {
+            if (activeRelation === null || !!this[activeRelation]) {
                 return;
             }
             const relationNames = activeRelation.split(".");
@@ -623,7 +687,8 @@ class Model {
                 this.__activeCurrentRelations.push(currentRelation);
             }
         });
-        mobx_1.extendObservable(this, lodash_1.mapValues(relationModels, (otherRelationNames, relationName) => {
+        // extendObservable where we omit the fields that are already created from other relations
+        mobx_1.extendObservable(this, lodash_1.mapValues(lodash_1.omit(relationModels, Object.keys(relationModels).filter(rel => !!this[rel])), (otherRelationNames, relationName) => {
             const RelationModel = relations[relationName];
             if (!RelationModel) {
                 throw Error(`Specified relation "${relationName}" does not exist on model.`);
@@ -633,18 +698,129 @@ class Model {
                 // @ts-ignore
                 return new RelationModel(options);
             }
+            // If we have a related model, we want to force the related model to have id null as that means there is no model set
             // @ts-ignore
-            return new RelationModel(null, options);
+            return new RelationModel({ id: null }, options);
         }));
     }
+    /**
+     * Makes this model a copy of the specified model
+     * or returns a copy of the current model when no model to copy is given
+     * It also clones the changes that were in the specified model.
+     * Cloning the changes requires recursion over all related models that have changes or are related to a model with changes.
+     * Cloning
+     *
+     * @param source The model that should be copied
+     * @param options Options, {copyChanges - only copy the changed attributes, requires recursion over all related objects with changes}
+     */
+    copy(rawSource = undefined, options = { copyChanges: true }) {
+        let copiedModel;
+        let source;
+        // If our source is not a model it is 'probably' the options
+        if (rawSource !== undefined && !(rawSource instanceof Model)) {
+            options = rawSource;
+            source = undefined;
+        }
+        else {
+            source = rawSource;
+        }
+        // Make sure that we have the correct model
+        if (source === undefined) {
+            source = this;
+            // @ts-ignore
+            copiedModel = new source.constructor({ relations: source.__activeRelations });
+        }
+        else if (this.constructor !== source.constructor) {
+            // @ts-ignore
+            copiedModel = new source.constructor({ relations: source.__activeRelations });
+        }
+        else {
+            copiedModel = this;
+        }
+        const copyChanges = options.copyChanges;
+        // Maintain the relations after copy
+        // this.__activeRelations = source.__activeRelations;
+        copiedModel.__parseRelations(source.__activeRelations);
+        // Copy all fields and values from the specified model
+        copiedModel.parse(source.toJS());
+        // Set only the changed attributes
+        if (copyChanges) {
+            copiedModel.__copyChanges(source);
+        }
+        return copiedModel;
+    }
+    /**
+     * Goes over model and all related models to set the changed values and notify the store
+     *
+     * @param source - the model to copy
+     * @param store  - the store of the current model, to setChanged if there are changes
+     * @private
+     */
+    __copyChanges(source, store) {
+        // Maintain the relations after copy
+        this.__parseRelations(source.__activeRelations);
+        // Copy all changed fields and notify the store that there are changes
+        if (source.__changes.length > 0) {
+            if (store) {
+                store.__setChanged = true;
+            }
+            else if (this.__store) {
+                this.__store.__setChanged = true;
+            }
+            source.__changes.forEach((changedAttribute) => {
+                this.setInput(changedAttribute, source[changedAttribute]);
+            });
+        }
+        // Undefined safety
+        if (source.__activeCurrentRelations.length > 0) {
+            // Set the changes for all related models with changes
+            source.__activeCurrentRelations.forEach((relation) => {
+                if (relation && source[relation]) {
+                    if (this[relation]) {
+                        if (source[relation].hasUserChanges) {
+                            if (source[relation].models) { // If related item is a store
+                                if (source[relation].models.length === this[relation].models.length) { // run only if the store shares the same amount of items
+                                    // Check if the store has some changes
+                                    this[relation].__setChanged = source[relation].__setChanged;
+                                    // Set the changes for all related models with changes
+                                    source[relation].models.forEach((relatedModel, index) => {
+                                        this[relation].models[index].__copyChanges(relatedModel, this[relation]);
+                                    });
+                                }
+                            }
+                            else {
+                                // Set the changes for the related model
+                                this[relation].__copyChanges(source[relation], undefined);
+                            }
+                        }
+                    }
+                    else {
+                        // Related object not in relations of the model we are copying
+                        console.warn(`Found related object ${source.constructor['backendResourceName']} with relation ${relation},
+                        which is not defined in the relations of the model you are copying. Skipping ${relation}.`);
+                    }
+                }
+            });
+        }
+    }
+    /**
+     * A model is considered new if it does not have an id, or if the id is a negative integer.
+     * @returns {boolean}   True if the model id is not set or a negative integer
+     */
     get isNew() {
         // @ts-ignore
-        return !this.id;
+        return !this.id || this.id < 0;
     }
+    /**
+     * The get url returns the url for a model., it appends the id if there is one. If the model is new it should not
+     * append an id.
+     *
+     * @returns {string}  the url for a model
+     */
     get url() {
         // @ts-ignore
         const id = this.id;
-        return `${lodash_1.result(this, 'urlRoot')}${id ? `${id}/` : ''}`;
+        return `${lodash_1.result(this, 'urlRoot')}${!this.isNew ? `${id}/` : ''}`;
     }
     relations() {
         return {};

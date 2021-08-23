@@ -826,3 +826,21 @@ describe('Pagination', () => {
         });
     });
 });
+test('New model after adding should have a negative id when not supplied', () => {
+    const animalStore = new Animal_1.AnimalStore();
+    animalStore.add({ name: 'Cee' });
+    expect(animalStore.at(0).id).toBeLessThan(0);
+});
+test('New model after adding should have the supplied id', () => {
+    const animalStore = new Animal_1.AnimalStore();
+    animalStore.add({ id: 12, name: 'Cee' });
+    expect(animalStore.at(0).id).toBe(12);
+});
+test('Adding multiple models should get different ids', () => {
+    const animalStore = new Animal_1.AnimalStore();
+    animalStore.add({ name: 'Cee' });
+    animalStore.add({ name: 'Bee' });
+    expect(animalStore.at(0).id).toBeLessThan(0);
+    expect(animalStore.at(1).id).toBeLessThan(0);
+    expect(animalStore.at(0).id).not.toBe(animalStore.at(1).id);
+});

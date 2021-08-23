@@ -78,9 +78,7 @@ export declare class Store<T extends ModelData, U extends Model<T>> implements W
     __parseNewIds(idMaps: {
         [x: string]: number[][];
     }): void;
-    toJS(): {
-        [key: string]: any;
-    }[];
+    toJS(): import("Model").ParseData<T>[];
     getPageOffset(): number;
     setLimit(limit?: number): void;
     get totalPages(): number;

@@ -10,6 +10,9 @@ export declare type ParseData<T> = {
 export declare type BackendData = {
     id?: number;
 };
+export declare type CopyOptions = {
+    copyChanges: boolean;
+};
 export interface ToBackendParams<T extends ModelData> {
     data?: T;
     mapData?: (x: BackendData) => BackendData;
@@ -98,9 +101,7 @@ export declare abstract class Model<T extends ModelData> implements WorkAround {
     get backendValidationErrors(): object;
     get fieldFilter(): (name: string) => boolean;
     __toJSAttr(attr: string, value: any): any;
-    toJS(): {
-        [key: string]: any;
-    };
+    toJS(): ParseData<T>;
     saveFile(name: string): Promise<any>;
     saveFromBackend(res: any): void;
     saveFiles(): Promise<any[]>;
@@ -110,17 +111,43 @@ export declare abstract class Model<T extends ModelData> implements WorkAround {
     get hasUserChanges(): boolean;
     get isLoading(): boolean;
     saveAllFiles(relations?: NestedRelations): Promise<any[][]>;
+    /**
+     * Validates a model and relations by sending a save request to binder with the validate header set. Binder will return the validation
+     * errors without actually committing the save
+     *
+     * @param options - same as for a normal saveAll request, example {relations:['foo'], onlyChanges: true}
+     */
+    validateAll(options?: SaveAllParams<T>): Promise<object>;
     saveAll(options?: SaveAllParams<T>): Promise<object>;
     __parseNewIds(idMaps: {
         [x: string]: number[][];
     }): void;
+    /**
+     * Validates a model by sending a save request to binder with the validate header set. Binder will return the validation
+     * errors without actually committing the save
+     *
+     * @param options - same as for a normal save request, example: {onlyChanges: true}
+     */
+    validate(options?: SaveParams<T>): Promise<{
+        data: ModelData;
+    }>;
     save(options?: SaveParams<T>): Promise<{
         data: ModelData;
     }>;
     setInput(name: string, value: any): void;
     toBackend(params?: ToBackendParams<T> | undefined): BackendData;
     getNegativeId(): number;
+    /**
+     * Get InternalId returns the id of a model or a negative id if the id is not set
+     * @returns the id of a model or a negative id if the id is not set
+     */
     getInternalId(): number;
+    /**
+     * Gives the model the internal id, meaning that it will keep the set id of the model or it will receive a negative
+     * id if the id is null. This is useful if you have a new model that you want to give an id so that it can be
+     * referred to in a relation.
+     */
+    assignInternalId(): void;
     __getApi(): Api;
     buildFetchData(options: {
         data?: any;
@@ -149,8 +176,37 @@ export declare abstract class Model<T extends ModelData> implements WorkAround {
      * @protected
      */
     protected __parseRelations(activeRelations: string[]): void;
+    /**
+     * Makes this model a copy of the specified model
+     * or returns a copy of the current model when no model to copy is given
+     * It also clones the changes that were in the specified model.
+     * Cloning the changes requires recursion over all related models that have changes or are related to a model with changes.
+     * Cloning
+     *
+     * @param source The model that should be copied
+     * @param options Options, {copyChanges - only copy the changed attributes, requires recursion over all related objects with changes}
+     */
+    copy(rawSource?: CopyOptions | Model<T> | undefined, options?: CopyOptions): Model<T>;
+    /**
+     * Goes over model and all related models to set the changed values and notify the store
+     *
+     * @param source - the model to copy
+     * @param store  - the store of the current model, to setChanged if there are changes
+     * @private
+     */
+    __copyChanges(source: Model<T>, store?: Store<T, Model<T>>): void;
     fromBackend: typeof baseFromBackend;
+    /**
+     * A model is considered new if it does not have an id, or if the id is a negative integer.
+     * @returns {boolean}   True if the model id is not set or a negative integer
+     */
     get isNew(): boolean;
+    /**
+     * The get url returns the url for a model., it appends the id if there is one. If the model is new it should not
+     * append an id.
+     *
+     * @returns {string}  the url for a model
+     */
     get url(): string;
     protected relations(): {
         [name: string]: StoreOrModelConstructor;
