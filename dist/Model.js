@@ -203,12 +203,32 @@ class Model {
         });
         return output;
     }
+    getEncodedFile(file) {
+        // get the resource name from path
+        const id = this['id'];
+        if (this.fileFields().includes(file) && !this.isNew) {
+            return `${lodash_1.result(this, 'urlRoot')}${id ? `${id}/` : ''}${file}/?encode=true`;
+        }
+        return '';
+    }
+    uuidv4() {
+        // @ts-ignore
+        return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+    }
     saveFile(name) {
         const snakeName = Utils_1.camelToSnake(name);
         if (this.__fileChanges[name]) {
             const file = this.__fileChanges[name];
             const data = new FormData();
-            data.append(name, file, file.name);
+            if (this.isBase64(file)) {
+                const newfile = this.dataURItoBlob(file);
+                // TODO Stop hardcoding .png
+                const fname = `${this.uuidv4()}.png`;
+                data.append(name, newfile, fname);
+            }
+            else {
+                data.append(name, file, file.name);
+            }
             return (this.api.post(`${this.url}${snakeName}/`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
                 .then(mobx_1.action((res) => {
                 this.__fileExists[name] = true;
@@ -234,6 +254,30 @@ class Model {
         else {
             return Promise.resolve();
         }
+    }
+    isBase64(str) {
+        if (typeof str === 'object' || str === undefined || str === null) {
+            return false;
+        }
+        if (str === '' || str.trim() === '') {
+            return false;
+        }
+        str = str.replace(/^[^,]+,/, '');
+        try {
+            return btoa(atob(str)) === atob(btoa(str));
+        }
+        catch (err) {
+            return false;
+        }
+    }
+    dataURItoBlob(dataURI) {
+        const mime = dataURI.split(',')[0].split(':')[1].split(';')[0];
+        const binary = atob(dataURI.split(',')[1]);
+        const array = [];
+        for (let i = 0; i < binary.length; i++) {
+            array.push(binary.charCodeAt(i));
+        }
+        return new Blob([new Uint8Array(array)], { type: mime });
     }
     // This is just a pass-through to make it easier to override parsing backend responses from the backend.
     // Sometimes the backend won't return the model after a save because e.g. it is created async.
@@ -413,7 +457,14 @@ class Model {
             if (value) {
                 this.__fileChanges[name] = value;
                 delete this.__fileDeletions[name];
-                value = `${URL.createObjectURL(value)}?content_type=${value.type}`;
+                const isBase64File = this.isBase64(value);
+                if (!isBase64File) {
+                    value = `${URL.createObjectURL(value)}?content_type=${value.type}`;
+                }
+                else {
+                    const blob = this.dataURItoBlob(value);
+                    value = `${URL.createObjectURL(blob)}`;
+                }
             }
             else {
                 if (!this.__fileChanges[name] || this.__fileChanges[name].existed) {

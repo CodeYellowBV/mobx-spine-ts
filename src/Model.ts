@@ -322,6 +322,23 @@ export abstract class Model<T extends ModelData> implements WorkAround {
         return output;
     }
 
+    getEncodedFile(file: string){
+        // get the resource name from path
+        const id = this['id'];
+
+        if(this.fileFields().includes(file) && !this.isNew){
+            return `${result(this, 'urlRoot')}${id ? `${id}/` : ''}${file}/?encode=true`;
+        }
+        return '';
+    }
+
+    uuidv4(): string {
+        // @ts-ignore
+        return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+          (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+        );
+      }
+
     saveFile(name: string): Promise<any> {
         const snakeName = camelToSnake(name);
 
@@ -329,7 +346,15 @@ export abstract class Model<T extends ModelData> implements WorkAround {
             const file = this.__fileChanges[name];
 
             const data = new FormData();
-            data.append(name, file, file.name);
+
+            if (this.isBase64(file)) {
+                const newfile = this.dataURItoBlob(file);
+                // TODO Stop hardcoding .png
+                const fname = `${this.uuidv4()}.png`;
+                data.append(name, newfile, fname);
+            } else {
+                data.append(name, file, file.name);
+            }
 
             return (
                 this.api.post(
@@ -361,6 +386,27 @@ export abstract class Model<T extends ModelData> implements WorkAround {
         } else {
             return Promise.resolve();
         }
+    }
+
+    isBase64(str: any): boolean {
+        if( typeof str === 'object' || str === undefined || str === null){ return false;}
+        if (str ==='' || str.trim() ===''){ return false; }
+        str = str.replace(/^[^,]+,/, '');
+        try {
+            return btoa(atob(str)) === atob(btoa(str));
+        } catch (err) {
+            return false;
+        }
+    }
+
+    dataURItoBlob(dataURI: string) {
+        const mime = dataURI.split(',')[0].split(':')[1].split(';')[0];
+        const binary = atob(dataURI.split(',')[1]);
+        const array = [];
+        for (let i = 0; i < binary.length; i++) {
+           array.push(binary.charCodeAt(i));
+        }
+        return new Blob([new Uint8Array(array)], {type: mime});
     }
 
     // This is just a pass-through to make it easier to override parsing backend responses from the backend.
@@ -576,7 +622,15 @@ export abstract class Model<T extends ModelData> implements WorkAround {
                 this.__fileChanges[name] = value;
                 delete this.__fileDeletions[name];
 
-                value = `${URL.createObjectURL(value)}?content_type=${value.type}`;
+                const isBase64File = this.isBase64(value);    
+
+                if(!isBase64File){
+                    value = `${URL.createObjectURL(value)}?content_type=${value.type}`;
+                }
+                else {
+                    const blob = this.dataURItoBlob(value);
+                    value = `${URL.createObjectURL(blob)}`;
+                }
             } else {
                 if (!this.__fileChanges[name] || this.__fileChanges[name].existed) {
                     this.__fileDeletions[name] = true;

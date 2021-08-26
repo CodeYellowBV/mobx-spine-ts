@@ -102,7 +102,11 @@ export declare abstract class Model<T extends ModelData> implements WorkAround {
     get fieldFilter(): (name: string) => boolean;
     __toJSAttr(attr: string, value: any): any;
     toJS(): ParseData<T>;
+    getEncodedFile(file: string): string;
+    uuidv4(): string;
     saveFile(name: string): Promise<any>;
+    isBase64(str: any): boolean;
+    dataURItoBlob(dataURI: string): Blob;
     saveFromBackend(res: any): void;
     saveFiles(): Promise<any[]>;
     clearUserFileChanges(): void;
