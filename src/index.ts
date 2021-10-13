@@ -1,3 +1,4 @@
 export {BinderApi} from "./BinderApi";
-export {Model} from "./Model"
-export {Store} from "./Store"
+export { Model, ModelData, tsPatch } from "./Model";
+export {Store} from "./Store";
+export { configureDateLib, Cast, Casts } from "./Casts";

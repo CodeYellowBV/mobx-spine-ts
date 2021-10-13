@@ -7,7 +7,8 @@ const config: Config.InitialOptions = {
     testEnvironment: 'node',
     rootDir: "src/",
     testPathIgnorePatterns: [
-        "/src/__tests__/fixtures/"
+        "/src/__tests__/fixtures/",
+        "/src/__tests__/helpers/"
     ],
 };
 export default config;

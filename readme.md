@@ -84,7 +84,7 @@ You can do put request using:
 ```put(url: string, data?: RequestData, options ?: RequestOptions):  Promise<object>```
 
 ### PATCH request
-You can do put request using: 
+You can do patch request using: 
 
 ```patch(url: string, data?: RequestData, options ?: RequestOptions):  Promise<object>```
 
@@ -189,3 +189,12 @@ class Animal {
 - Model will generated a warning when you are trying to give it a key that doesn't exist, e.g.`new Animal({thisDoesNotExist: 1})`
 - Base model has a relations method, returning no relations which can be overridden.
 - On the model, in the private method `__scopeBackendResponse` mapping has been renamed to `relMapping` to be consistent with the `fromBackend` method.
+- The unused `primaryKey` has been removed.
+
+# Wishes
+While refactoring, I encountered some stuff I didn't appreciate. We should later decide which of these items is worth refactoring:
+- Model.pickFields is allowed to be undefined, but Model.fileFields and omitFields are not (but they are allowed to be an empty array).
+- Model.urlRoot is sometimes a function (in Model itself) and sometimes a property (for instance in tests/Animal). We should probably unify this...
+- Currently, the relations of Models are returned by a method. This causes linting errors when accessing them because they are technically not properties (even though some JavaScript magic ensures that they will exist at runtime). It would probably be better if they were real properties instead.
+- Our JavaScript mobx spine implementation uses some static properties in Model (like `backendResourceName`) and expects subclasses to override this. However, TypeScript doesn't seem to like 'static inheritance'. The JavaScript code would use this.constructor.backendResourceName, but the TypeScript code needs the uglier `this.constructor['backendResourceName']`. We should find a better solution and perhaps ditch all static stuff.
+- The `Store` class has both an `each` and a `forEach` method, but they do exactly the same thing. I kept both to avoid breaking changes, but I would like to delete one of them.

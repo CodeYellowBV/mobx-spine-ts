@@ -1,0 +1,264 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`requests save all with existing model 1`] = `
+Object {
+  "data": Array [
+    Object {
+      "id": 10,
+      "kind": -2,
+      "name": "Doggo",
+    },
+  ],
+  "with": Object {
+    "kind": Array [
+      Object {
+        "id": -2,
+        "name": "Dog",
+      },
+    ],
+  },
+}
+`;
+
+exports[`toBackendAll should de-duplicate relations 1`] = `
+Object {
+  "data": Array [
+    Object {
+      "id": -1,
+      "name": "",
+      "past_owners": Array [
+        -2,
+      ],
+    },
+  ],
+  "relations": Object {
+    "location": Array [
+      Object {
+        "id": -3,
+        "name": "",
+      },
+    ],
+    "past_owners": Array [
+      Object {
+        "id": -2,
+        "name": "Bar",
+        "town": -3,
+      },
+    ],
+  },
+}
+`;
+
+exports[`toBackendAll with \`backendResourceName\` property model 1`] = `
+Object {
+  "data": Array [
+    Object {
+      "blaat": 2,
+      "id": 1,
+      "owners": Array [
+        3,
+      ],
+      "past_owners": Array [
+        4,
+      ],
+    },
+  ],
+  "relations": Object {
+    "kind": Array [
+      Object {
+        "id": 2,
+      },
+    ],
+    "person": Array [
+      Object {
+        "id": 3,
+        "name": "",
+      },
+      Object {
+        "id": 4,
+        "name": "",
+      },
+    ],
+  },
+}
+`;
+
+exports[`toBackendAll with deep nested relation 1`] = `
+Object {
+  "data": Array [
+    Object {
+      "id": -1,
+      "kind": -2,
+      "name": "",
+    },
+  ],
+  "relations": Object {
+    "breed": Array [
+      Object {
+        "id": -4,
+        "location": -5,
+        "name": "MyBreed",
+      },
+    ],
+    "kind": Array [
+      Object {
+        "breed": -4,
+        "id": -2,
+        "location": -3,
+        "name": "Aap",
+      },
+    ],
+    "location": Array [
+      Object {
+        "id": -3,
+        "name": "Apenheul",
+      },
+      Object {
+        "id": -5,
+        "name": "Amerika",
+      },
+    ],
+  },
+}
+`;
+
+exports[`toBackendAll with model relation 1`] = `
+Object {
+  "data": Array [
+    Object {
+      "id": 4,
+      "kind": 5,
+      "name": "",
+      "owner": -4,
+    },
+  ],
+  "relations": Object {
+    "breed": Array [
+      Object {
+        "id": -3,
+        "name": "",
+      },
+    ],
+    "kind": Array [
+      Object {
+        "breed": -3,
+        "id": 5,
+        "name": "",
+      },
+    ],
+    "person": Array [
+      Object {
+        "id": -4,
+        "name": "",
+      },
+    ],
+  },
+}
+`;
+
+exports[`toBackendAll with nested store relation 1`] = `
+Object {
+  "data": Array [
+    Object {
+      "id": -1,
+      "name": "",
+      "past_owners": Array [
+        -2,
+        -4,
+      ],
+    },
+  ],
+  "relations": Object {
+    "location": Array [
+      Object {
+        "id": -3,
+        "name": "Eindhoven",
+      },
+      Object {
+        "id": -5,
+        "name": "Breda",
+      },
+    ],
+    "past_owners": Array [
+      Object {
+        "id": -2,
+        "name": "Henk",
+        "town": -3,
+      },
+      Object {
+        "id": -4,
+        "name": "Krol",
+        "town": -5,
+      },
+    ],
+  },
+}
+`;
+
+exports[`toBackendAll with partial relations 1`] = `
+Object {
+  "data": Array [
+    Object {
+      "id": -1,
+      "kind": null,
+      "name": "Doggo",
+      "owner": -3,
+    },
+  ],
+  "relations": Object {
+    "person": Array [
+      Object {
+        "id": -3,
+        "name": "Henk",
+        "town": null,
+      },
+    ],
+  },
+}
+`;
+
+exports[`toBackendAll with store relation 1`] = `
+Object {
+  "data": Array [
+    Object {
+      "id": -1,
+      "name": "",
+      "past_owners": Array [
+        -2,
+        -3,
+        10,
+      ],
+    },
+  ],
+  "relations": Object {
+    "past_owners": Array [
+      Object {
+        "id": -2,
+        "name": "Bar",
+      },
+      Object {
+        "id": -3,
+        "name": "Foo",
+      },
+      Object {
+        "id": 10,
+        "name": "R",
+      },
+    ],
+  },
+}
+`;
+
+exports[`toBackendAll without relations 1`] = `
+Object {
+  "data": Array [
+    Object {
+      "id": 4,
+      "kind": 5,
+      "name": "",
+      "owner": null,
+    },
+  ],
+  "relations": Object {},
+}
+`;

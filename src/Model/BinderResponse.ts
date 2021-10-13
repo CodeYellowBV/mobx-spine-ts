@@ -8,6 +8,7 @@ export interface Response<T extends ModelData> {
     with: { [key: string]: ModelData[] },
     meta: object
     with_mapping: { [key: string]: string },
+    with_related_name_mapping: { [key: string]: string }
 }
 
 
@@ -19,6 +20,7 @@ export interface LegacyResponse<T extends ModelData> {
     data: T | T[],
     repos?: { [key: string]: ModelData[] },
     relMapping?: { [key: string]: string },
+    reverseRelMapping?: { [key: string]: string },
 }
 
 /**
@@ -41,6 +43,7 @@ export function modelResponseAdapter<T extends ModelData>(response: ResponseAdap
         data: response.data,
         with: (response as LegacyResponse<T>).repos || {},
         meta: {},
-        with_mapping: (response as LegacyResponse<T>).relMapping || {}
+        with_mapping: (response as LegacyResponse<T>).relMapping || {},
+        with_related_name_mapping: (response as LegacyResponse<T>).reverseRelMapping || {},
     }
 }

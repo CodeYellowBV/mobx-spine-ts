@@ -1,25 +1,15 @@
+import Api, { FetchResponse, FetchStoreOptions, FetchStoreResponse, GetResponse, PutResponse, RequestData, RequestOptions } from 'Api';
 import axios, {AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse, Method} from 'axios';
 import {get} from 'lodash';
-
-interface RequestOptions {
-    // If true, returns the whole axios response. Otherwise, parse the response data,
-    skipRequestError?: Boolean;
-    skipFormatter?: boolean;
-    params?: RequestData;
-    headers?: any;
-}
-
-interface RequestData {
-
-}
+import { Store } from 'Store';
+import { Model, ModelData } from './Model';
 
 function csrfSafeMethod(method: Method) {
     // These HTTP methods do not require CSRF protection.
     return /^(GET|HEAD|OPTIONS|TRACE)$/i.test(method);
 }
 
-
-export class BinderApi {
+export class BinderApi implements Api {
     axios: AxiosInstance = axios.create();
     defaultHeaders: any = {}
     baseUrl?: string = null;
@@ -53,7 +43,9 @@ export class BinderApi {
 
     public fetchCsrfToken() {
         return this.get('/api/bootstrap/').then(res => {
-            this.csrfToken = (res as BootstrapResponse).csrf_token;
+            // This conversion is dirty because the BootstrapResponse is a
+            // ... special get response
+            this.csrfToken = (res as any as BootstrapResponse).csrf_token;
         });
     }
 
@@ -76,7 +68,7 @@ export class BinderApi {
      * @param data
      * @param options
      */
-    protected __request(method: Method, url: string, data?: RequestData, options?: RequestOptions): Promise<object> {
+    protected __request(method: Method, url: string, data?: RequestData, options?: RequestOptions): Promise<any> {
 
         if (!options) {
             options = {};
@@ -101,9 +93,10 @@ export class BinderApi {
             url: url,
             method: method,
             data: this.__formatData(method, data),
-            params: this.__formatQueryParams(method, data, options),
-            headers: headers
+            params: this.__formatQueryParams(method, data, options)
         };
+        Object.assign(config, options);
+        config.headers = headers;
         const xhr: AxiosPromise = this.axios(config);
 
         // We fork the promise tree as we want to have the error traverse to the listeners
@@ -118,6 +111,25 @@ export class BinderApi {
 
 
         return xhr.then(onSuccess);
+    }
+
+    parseBackendValidationErrors(response: object): object | null {
+        const valErrors = get(response, 'data.errors');
+        if (response['status'] === 400 && valErrors) {
+            return valErrors;
+        }
+        return null;
+    }
+
+    buildFetchModelParams<T>(model: Model<T>) {
+        return {
+            // TODO: I really dislike that this is comma separated and not an array.
+            // We should fix this in the Binder API.
+            with:
+                model.__activeRelations
+                    .map(model.constructor['toBackendAttrKey'])
+                    .join(',') || null,
+        };
     }
 
     /**
@@ -173,25 +185,112 @@ export class BinderApi {
         }
     }
 
-    public get(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+    fetchModel<T extends ModelData>({ url, data, requestOptions }): Promise<FetchResponse<T>> {
+        return this.get<T>(url, data, requestOptions).then((rawRes: GetResponse<T> | AxiosResponse) => {
+            // This will go wrong if requestOptions contains skipFormatter
+            const res = rawRes as GetResponse<T>;
+            return {
+                data: res.data as T,
+                repos: res.with,
+                relMapping: res.with_mapping,
+                reverseRelMapping: res.with_related_name_mapping,
+            };
+        });
+    }
+
+    saveModel<T extends ModelData>({ url, data, isNew, requestOptions }): Promise<{ data: T }> {
+        const method = isNew ? 'post' : 'patch';
+        return this[method](url, data, requestOptions)
+            .then((newData: T | AxiosResponse) => {
+                // This won't go well if the skipFormatter parameter is used
+                return { data: newData as T};
+            })
+            .catch(err => {
+                if (err.response) {
+                    err.valErrors = this.parseBackendValidationErrors(
+                        err.response
+                    );
+                }
+                throw err;
+            });
+    }
+
+    saveAllModels<T extends ModelData>(params: { url: string, data: any, model: Model<T>, requestOptions: RequestOptions }): Promise<PutResponse | AxiosResponse> {
+        return this.put(
+            params.url,
+            {
+                data: params.data.data,
+                with: params.data.relations,
+            },
+            params.requestOptions
+        )
+            .then((res: PutResponse | AxiosResponse) => {
+                if (res['idmap']) {
+                    params.model.__parseNewIds(res['idmap']);
+                }
+                return res;
+            })
+            .catch(err => {
+                if (err.response) {
+                    err.valErrors = this.parseBackendValidationErrors(
+                        err.response
+                    );
+                }
+                throw err;
+            });
+    }
+
+    public get<T>(url: string, data?: RequestData, options ?: RequestOptions): Promise<GetResponse<T>> | Promise<AxiosResponse> {
         return this.__request('get', url, data, options);
     }
 
-    public post(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+    public post<T>(url: string, data?: RequestData, options ?: RequestOptions): Promise<T> | Promise<AxiosResponse> {
         return this.__request('post', url, data, options);
     }
 
-    public put(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+    public put(url: string, data?: RequestData, options ?: RequestOptions): Promise<PutResponse> | Promise<AxiosResponse> {
         return this.__request('put', url, data, options);
     }
 
-    public patch(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+    public patch<T>(url: string, data?: RequestData, options ?: RequestOptions): Promise<T> | Promise<AxiosResponse> {
         return this.__request('patch', url, data, options);
     }
 
-    public delete(url: string, data?: RequestData, options ?: RequestOptions): Promise<object> {
+    public delete(url: string, data?: RequestData, options ?: RequestOptions): Promise<void> | Promise<AxiosResponse> {
         return this.__request('delete', url, data, options);
     }
 
-}
+    deleteModel(options: { url: string, requestOptions: RequestOptions }): Promise<void> | Promise<AxiosResponse> {
+        // TODO: kind of silly now, but we'll probably want better error handling soon.
+        return this.delete(options.url, null, options.requestOptions);
+    }
 
+    buildFetchStoreParams<T extends ModelData, U extends Model<T>>(store: Store<T, U>) {
+        const offset = store.getPageOffset();
+        const limit = store.__state.limit;
+        return {
+            with:
+                store.__activeRelations
+                    .map(store.Model['toBackendAttrKey'])
+                    .join(',') || null,
+            limit: limit === null ? 'none' : limit,
+            // Hide offset if zero so the request looks cleaner in DevTools.
+            offset: offset || null,
+        };
+    }
+
+    fetchStore<T extends ModelData>(options: FetchStoreOptions): Promise<FetchStoreResponse<T>> {
+        return this.get<T>(options.url, options.data, options.requestOptions).then((rawRes: GetResponse<T> | AxiosResponse) => {
+            // This won't go well if the skipFormatting option is used
+            const res = rawRes as GetResponse<T>;
+            return {
+                response: res,
+                data: res.data as T[],
+                repos: res.with,
+                relMapping: res.with_mapping,
+                reverseRelMapping: res.with_related_name_mapping,
+                totalRecords: res.meta.total_records,
+            };
+        });
+    }
+}
