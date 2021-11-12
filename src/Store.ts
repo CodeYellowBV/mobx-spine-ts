@@ -1,9 +1,9 @@
-import {BackendData, Model, ModelData, ModelOptions, NestedRelations, ToBackendAllParams} from "Model";
+import {BackendData, Model, ModelData, ModelOptions, NestedRelations, ToBackendAllParams} from "./Model";
 import {action, computed, IObservableArray, observable, autorun, IReactionDisposer } from "mobx";
 import {modelResponseAdapter, ResponseAdapter} from "./Model/BinderResponse";
 import { isPlainObject, map, isArray, sortBy, filter, find, forIn, uniqBy, result, omit } from 'lodash';
-import { BinderApi } from "BinderApi";
-import { FetchStoreOptions, GetResponse } from "Api";
+import { BinderApi } from "./BinderApi";
+import {FetchStoreOptions, GetResponse, RequestOptions} from "./Api";
 
 export interface StoreOptions<U> {
     /**
@@ -86,7 +86,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
         }
 
         this['__testingId'] = Math.floor(100000 * Math.random());
-        
+
         const options = rawOptions || {};
         this.__repository = options.repository;
         this.__activeRelations = options.relations || [];
@@ -176,6 +176,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
     }
 
     map<V>(mapping: string | ((model: U) => V)): V[] {
+        // @ts-ignore
         return map(this.models, mapping);
     }
 
@@ -328,7 +329,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
             .fetchStore<T>({
                 url: options.url || result(this, 'url'),
                 data,
-                requestOptions: omit(options, 'data'),
+                requestOptions: omit(options, 'data') as RequestOptions,
             })
             .then(action(res => {
                 this.__state.totalRecords = res.totalRecords;
@@ -411,7 +412,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
     }
 
     /**
-     * Removes the model(s) with the given rawID(s) from this store and returns the 
+     * Removes the model(s) with the given rawID(s) from this store and returns the
      * removed model(s).
      * @param rawIDs The id(s) for which the corresponding model(s) should be removed
      * @returns The removed model(s)
@@ -419,8 +420,8 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
     @action
     removeById(rawIDs: string | number | Array<string | number>) {
         const singular = !isArray(rawIDs);
-        const ids = singular ? 
-            [parseInt('' + (rawIDs as string | number))] : 
+        const ids = singular ?
+            [parseInt('' + (rawIDs as string | number))] :
             (rawIDs as Array<string | number>).map(rawID => parseInt('' + rawID));
         if (ids.some(isNaN)) {
                 throw new Error(`[mobx-spine] Can't remove a model by id that is Not A Number: ${JSON.stringify(rawIDs)}`);
@@ -508,6 +509,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * predicate returns true.
      */
     filter(predicate: any[] | ((model: U) => boolean)): Array<U> {
+        // @ts-ignore
         return filter(this.models, predicate);
     }
 
@@ -516,6 +518,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
      * `undefined` if the predicate didn't return true for a single model.
      */
     find(predicate: object | ((model: U) => boolean)): U | undefined {
+        // @ts-ignore
         return find(this.models, predicate);
     }
 
@@ -536,7 +539,7 @@ export class Store<T extends ModelData, U extends Model<T>> implements WorkAroun
     /**
      * Get the model at the given `index` (position) in the array, or null if this
      * store doesn't have a model with the given `index`.
-     * 
+     *
      * This method also accepts a negative `index`: -1 yields the last model,
      * -2 yields the second-last model, ...
      */

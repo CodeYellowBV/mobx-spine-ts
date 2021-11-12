@@ -1,7 +1,7 @@
-import Api, { FetchResponse, FetchStoreOptions, FetchStoreResponse, GetResponse, PutResponse, RequestData, RequestOptions } from 'Api';
+import Api, { FetchResponse, FetchStoreOptions, FetchStoreResponse, GetResponse, PutResponse, RequestData, RequestOptions } from './Api';
 import axios, {AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse, Method} from 'axios';
 import {get} from 'lodash';
-import { Store } from 'Store';
+import { Store } from './Store';
 import { Model, ModelData } from './Model';
 
 function csrfSafeMethod(method: Method) {
@@ -200,7 +200,9 @@ export class BinderApi implements Api {
 
     saveModel<T extends ModelData>({ url, data, isNew, requestOptions }): Promise<{ data: T }> {
         const method = isNew ? 'post' : 'patch';
+
         return this[method](url, data, requestOptions)
+            // @ts-ignore
             .then((newData: T | AxiosResponse) => {
                 // This won't go well if the skipFormatter parameter is used
                 return { data: newData as T};

@@ -4,12 +4,12 @@ import {
 } from 'mobx';
 import { camelToSnake, snakeToCamel, forNestedRelations, relationsToNestedKeys } from "./Utils";
 import {
-    forIn, uniqueId, result, mapValues, isPlainObject, isArray, 
+    forIn, uniqueId, result, mapValues, isPlainObject, isArray,
     uniq, uniqBy, get, omit, mapKeys, each
 } from 'lodash';
 import {Store} from "./Store";
 import baseFromBackend from "./Model/FromBackend";
-import Api from 'Api';
+import Api from './Api';
 
 function concatInDict(dict: object, key: string, value: any) {
     dict[key] = dict[key] ? dict[key].concat(value) : value;
@@ -84,7 +84,7 @@ interface WorkAround {
 }
 
 export abstract class Model<T extends ModelData> implements WorkAround {
-    
+
     /**
      * How the model is known at the backend. This is useful when the model is in a
      * relation that has a different name.
@@ -436,7 +436,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
             this[currentRel].clearValidationErrors();
         });
     }
-    
+
     clearUserFieldChanges() {
         this.__changes['clear']();
     }
@@ -622,7 +622,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
                 this.__fileChanges[name] = value;
                 delete this.__fileDeletions[name];
 
-                const isBase64File = this.isBase64(value);    
+                const isBase64File = this.isBase64(value);
 
                 if(!isBase64File){
                     value = `${URL.createObjectURL(value)}?content_type=${value.type}`;
@@ -833,7 +833,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
             // If it is our primary key, and the primary key is negative, we generate a new negative pk, else we set it
             // to the value
             if (key === this['id'] && value < 0){
-                this[key] = -1 * uniqueId();
+                this[key] = -1 * (uniqueId() as unknown as number);
             } else {
                 this[key] = value;
             }
@@ -985,7 +985,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
 
         // extendObservable where we omit the fields that are already created from other relations
         extendObservable(this, mapValues(
-            omit(relationModels, Object.keys(relationModels).filter(rel => !!this[rel])), 
+            omit(relationModels, Object.keys(relationModels).filter(rel => !!this[rel])),
             (otherRelationNames: string[], relationName: string) => {
                     const RelationModel = relations[relationName];
                     if (!RelationModel) {
