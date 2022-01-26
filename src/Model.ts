@@ -252,6 +252,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
                     // The relation is cleared.
                     this[attr].clear();
                 }
+            }
             // Mobx-spine should silently ignore undefined fields.
             //} else {
             //    console.warn(`Object has no attribute ${attr}. This value is ignored in the bootstrap`)
