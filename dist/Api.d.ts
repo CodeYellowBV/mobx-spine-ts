@@ -1,5 +1,5 @@
 import { AxiosResponse } from "axios";
-import { Model, ModelData } from "Model";
+import { Model, ModelData } from "./Model";
 export default interface Api {
     get<T extends ModelData>(url: string, data?: RequestData, options?: RequestOptions): Promise<GetResponse<T>> | Promise<AxiosResponse>;
     post<T extends ModelData>(url: string, data?: RequestData, options?: RequestOptions): Promise<T> | Promise<AxiosResponse>;

@@ -103,6 +103,7 @@ class Store {
         this.__setChanged = false;
     }
     map(mapping) {
+        // @ts-ignore
         return lodash_1.map(this.models, mapping);
     }
     toBackendAll(options = {}) {
@@ -358,6 +359,7 @@ class Store {
      * predicate returns true.
      */
     filter(predicate) {
+        // @ts-ignore
         return lodash_1.filter(this.models, predicate);
     }
     /**
@@ -365,6 +367,7 @@ class Store {
      * `undefined` if the predicate didn't return true for a single model.
      */
     find(predicate) {
+        // @ts-ignore
         return lodash_1.find(this.models, predicate);
     }
     /**

@@ -1,6 +1,6 @@
 import { Store } from "./Store";
 import baseFromBackend from "./Model/FromBackend";
-import Api from 'Api';
+import Api from './Api';
 export interface ModelData {
     id?: number;
 }

@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BinderApi = void 0;
 const axios_1 = __importDefault(require("axios"));
 const lodash_1 = require("lodash");
-function csrfSafeMethod(method) {
+function csrfSafestring(method) {
     // These HTTP methods do not require CSRF protection.
     return /^(GET|HEAD|OPTIONS|TRACE)$/i.test(method);
 }
@@ -44,7 +44,7 @@ class BinderApi {
      * set csrf token
      */
     __csrfToken(method) {
-        return csrfSafeMethod(method)
+        return csrfSafestring(method)
             ? undefined
             : this.csrfToken;
     }
@@ -163,6 +163,7 @@ class BinderApi {
     saveModel({ url, data, isNew, requestOptions }) {
         const method = isNew ? 'post' : 'patch';
         return this[method](url, data, requestOptions)
+            // @ts-ignore
             .then((newData) => {
             // This won't go well if the skipFormatter parameter is used
             return { data: newData };

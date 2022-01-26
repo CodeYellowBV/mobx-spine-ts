@@ -1,8 +1,8 @@
-import { BackendData, Model, ModelData, ModelOptions, NestedRelations, ToBackendAllParams } from "Model";
+import { BackendData, Model, ModelData, ModelOptions, NestedRelations, ToBackendAllParams } from "./Model";
 import { IObservableArray, IReactionDisposer } from "mobx";
 import { ResponseAdapter } from "./Model/BinderResponse";
-import { BinderApi } from "BinderApi";
-import { FetchStoreOptions, GetResponse } from "Api";
+import { BinderApi } from "./BinderApi";
+import { FetchStoreOptions, GetResponse } from "./Api";
 export interface StoreOptions<U> {
     /**
      * List of active relations for this store
@@ -78,7 +78,7 @@ export declare class Store<T extends ModelData, U extends Model<T>> implements W
     __parseNewIds(idMaps: {
         [x: string]: number[][];
     }): void;
-    toJS(): import("Model").ParseData<T>[];
+    toJS(): import("./Model").ParseData<T>[];
     getPageOffset(): number;
     setLimit(limit?: number): void;
     get totalPages(): number;

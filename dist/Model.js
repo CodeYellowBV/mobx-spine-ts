@@ -148,9 +148,10 @@ class Model {
                     this[attr].clear();
                 }
             }
-            else {
-                console.warn(`Object has no attribute ${attr}. This value is ignored in the bootstrap`);
-            }
+            // Mobx-spine should silently ignore undefined fields.
+            //} else {
+            //    console.warn(`Object has no attribute ${attr}. This value is ignored in the bootstrap`)
+            //}
         });
         return this;
     }
