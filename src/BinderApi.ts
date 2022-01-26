@@ -1,11 +1,11 @@
 import Api, { FetchResponse, FetchStoreOptions, FetchStoreResponse, GetResponse, PutResponse, RequestData, RequestOptions } from './Api';
-import axios, {AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse, Method} from 'axios';
+import axios, {AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse} from 'axios';
 import {get} from 'lodash';
 import { Store } from './Store';
 import { Model, ModelData } from './Model';
 import { BootstrapResponse } from './Interfaces';
 
-function csrfSafeMethod(method: Method) {
+function csrfSafestring(method: string) {
     // These HTTP methods do not require CSRF protection.
     return /^(GET|HEAD|OPTIONS|TRACE)$/i.test(method);
 }
@@ -54,8 +54,8 @@ export class BinderApi implements Api {
      * Determines the csrf token that needs to be added to the request, based upon the method, and the internally
      * set csrf token
      */
-    protected __csrfToken(method: Method): string | undefined {
-        return csrfSafeMethod(method)
+    protected __csrfToken(method: string): string | undefined {
+        return csrfSafestring(method)
             ? undefined
             : this.csrfToken;
     }
@@ -69,7 +69,7 @@ export class BinderApi implements Api {
      * @param data
      * @param options
      */
-    protected __request(method: Method, url: string, data?: RequestData, options?: RequestOptions): Promise<any> {
+    protected __request(method: string, url: string, data?: RequestData, options?: RequestOptions): Promise<any> {
 
         if (!options) {
             options = {};
@@ -141,7 +141,7 @@ export class BinderApi implements Api {
      * @param method
      * @param data
      */
-    protected __formatData(method: Method, data?: RequestData): RequestData {
+    protected __formatData(method: string, data?: RequestData): RequestData {
         // in a get method, we have never data
         if (method.toLowerCase() === 'get') {
             return undefined;
@@ -156,7 +156,7 @@ export class BinderApi implements Api {
      * @param data
      * @param options
      */
-    protected __formatQueryParams(method: Method, data?: RequestData, options?: RequestOptions): RequestData {
+    protected __formatQueryParams(method: string, data?: RequestData, options?: RequestOptions): RequestData {
         if (method.toLowerCase() === 'get' && data) {
             return data;
         }
