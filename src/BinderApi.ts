@@ -3,6 +3,7 @@ import axios, {AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse, M
 import {get} from 'lodash';
 import { Store } from './Store';
 import { Model, ModelData } from './Model';
+import { BootstrapResponse } from './Interfaces';
 
 function csrfSafeMethod(method: Method) {
     // These HTTP methods do not require CSRF protection.

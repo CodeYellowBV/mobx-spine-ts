@@ -1,4 +1,5 @@
-import { Model, Casts, ModelData, tsPatch } from '../../';
+import { Model, Casts, tsPatch } from '../../';
+import { ModelData } from '../../Model';
 import { observable } from 'mobx';
 import { Settings, DateTime } from 'luxon';
 import moment, { Moment } from 'moment';

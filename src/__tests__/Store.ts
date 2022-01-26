@@ -1,6 +1,7 @@
 import axios from 'axios';
 import MockAdapter from 'axios-mock-adapter';
-import { Model, Store, BinderApi, ModelData } from '../';
+import { Model, Store, BinderApi } from '../';
+import { ModelData } from '../Model';
 import {
     Animal,
     AnimalStore,
