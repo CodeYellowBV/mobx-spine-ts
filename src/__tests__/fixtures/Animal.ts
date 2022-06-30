@@ -14,6 +14,44 @@ export class Location extends Model<LocationData> {
     @observable name = '';
 }
 
+type FileData = {
+    id?: number;
+    dataFile?: Blob;
+}
+
+@tsPatch
+export class File extends Model<FileData> {
+    urlRoot = '/api/file/';
+    api = new BinderApi();
+
+    static backendResourceName = 'file';
+    @observable id = null;
+    @observable dataFile = null;
+}
+
+export class FileStore extends Store<FileData, File> {
+    Model = File
+}
+
+type FileCabinetData = {
+    id?: number;
+}
+
+@tsPatch
+export class FileCabinet extends Model<FileCabinetData> {
+    urlRoot = '/api/file_cabinet/';
+    api = new BinderApi();
+
+    static backendResourceName = 'file_cabinet';
+    @observable id = null;
+
+    relations() {
+        return {
+            files: FileStore,
+        }
+    }
+}
+
 
 type BreedData = {
     id?: number,

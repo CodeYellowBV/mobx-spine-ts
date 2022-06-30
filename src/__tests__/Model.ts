@@ -1,7 +1,8 @@
 import {
     Animal, AnimalCircular, AnimalResourceName, AnimalWithArray, AnimalStore,
     AnimalWithFrontendProp, AnimalWithoutApi, AnimalWithObject, AnimalWithoutUrl,
-    Breed, Kind, Location, Person, PersonStore, KindResourceName
+    Breed, Kind, Location, Person, PersonStore, KindResourceName,
+    File, FileCabinet
 } from "./fixtures/Animal";
 import _ from 'lodash';
 import {Location as CustomerLocation, Customer} from "./fixtures/Customer";
@@ -20,6 +21,7 @@ import customersLocationBestCookWorkPlaces from './fixtures/customers-location-b
 import animalKindBreedDataNested from './fixtures/animal-with-kind-breed-nested.json';
 import animalsWithPastOwnersAndTownData from "./fixtures/animals-with-past-owners-and-town.json";
 import customersWithTownCookRestaurant from './fixtures/customers-with-town-cook-restaurant.json';
+import inconsistentOrderingWith from './fixtures/inconsistent-ordering-withs.json';
 
 beforeEach(() => {
     // Refresh lodash's `_.uniqueId` internal state for every test
@@ -1160,6 +1162,64 @@ describe('requests', () => {
         });
     });
 
+    test('Save model with file', () => {
+        const file = new File({ id: 5 });
+        const dataFile = new Blob(['foo'], { type: 'text/plain' });
+        file.setInput('dataFile', dataFile);
+        mock.onAny().replyOnce(config => {
+            expect(config.method).toBe('patch');
+            expect(config.data).toBeInstanceOf(FormData);
+            const keys = Array.from(config.data.keys()).sort();
+            expect(keys).toEqual(['data', 'file:data_file']);
+            const data = JSON.parse(config.data.get('data'));
+            expect(data).toEqual({
+                data_file: null,
+                id: 5,
+            });
+            return [200, { id: 5, data_file: '/api/dataFile' } ];
+        });
+        file.save().then(() => {
+            expect(file.id).toBe(5);
+            expect(file.dataFile).toBe('/api/dataFile');
+        });
+    });
+    test('Save model with relations and multiple files', () => {
+        const fileCabinet = new FileCabinet({ id: 5 },{relations: ['files']});
+
+        // @ts-ignore
+        fileCabinet.files.add([
+            { dataFile: new Blob(['bar'], { type: 'text/plain' }) },
+            { dataFile: new Blob(['foo'], { type: 'text/plain' }) },
+            { dataFile: new Blob(['baz'], { type: 'text/plain' }) },
+        ]);
+        mock.onAny().replyOnce(config => {
+            expect(config.method).toBe('put');
+            expect(config.data).toBeInstanceOf(FormData);
+            const keys = Array.from(config.data.keys()).sort();
+            expect(keys).toEqual([
+                'data',
+                'file:with.files.0.data_file',
+                'file:with.files.1.data_file',
+                'file:with.files.2.data_file']);
+            const data = JSON.parse(config.data.get('data'));
+            expect(data).toEqual({
+                data: [{
+                    id: 5,
+                    files: [-2, -3, -4],
+                }],
+                with: {
+                    files: [
+                        { id: -2, data_file: null },
+                        { id: -3, data_file: null },
+                        { id: -4, data_file: null },
+                    ],
+                },
+            });
+            return [200, {}];
+        });
+        fileCabinet.save({ relations: ['files'] });
+    });
+
     test('fetch with relations', () => {
         const animal = new Animal(
             { id: 2 },
@@ -1259,7 +1319,7 @@ describe('requests', () => {
         expect(spy).toHaveBeenCalledWith(
             '/zebra/1/',
             { with: null },
-            { skipRequestErrors: true }
+            expect.objectContaining({ skipRequestErrors: true })
         );
     });
 
@@ -1271,6 +1331,33 @@ describe('requests', () => {
         });
 
         return kind.fetch();
+    });
+
+    test('cancel previous fetch', () => {
+        const animal = new Animal({ id: 2 });
+        mock.onAny().reply(config => {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    if (config.signal.aborted) {
+                        reject({ __CANCEL__: true })
+                    }
+                    resolve([200, { data: { id: 2, name: 'Madagascar' } }])
+                }, 1000)
+            })
+        });
+        /**
+         * Here we are testing that the first request gets cancelled before it is resolved
+         * causing the animal object to not get hydrated, while the second request resolves
+         * successfully later, and the name attribute is hydrated properly
+         */
+        return Promise.all([
+            animal.fetch().then(() => {
+                expect(animal.name).toBe('');
+            }),
+            animal.fetch({ cancelPreviousFetch: true }).then(() => {
+                expect(animal.name).toBe('Madagascar');
+            })
+        ]);
     });
 
     test('save new with basic properties', () => {
@@ -1455,7 +1542,7 @@ describe('requests', () => {
             return [201, animalMultiPutResponse];
         });
 
-        return animal.saveAll({ relations: ['kind'] }).then(response => {
+        return animal.save({ relations: ['kind'] }).then(response => {
             expect(spy).toHaveBeenCalled();
             expect(animal.id).toBe(10);
             // @ts-ignore
@@ -1487,7 +1574,7 @@ describe('requests', () => {
             expect(config.method).toBe('put');
             return [201, animalMultiPutResponse];
         });
-        return animal.validateAll({ relations: ['kind'] }).then(response => {
+        return animal.validate({ relations: ['kind'] }).then(response => {
             expect(spy).not.toHaveBeenCalled();
             expect(animal.id).toBe(10);
             // @ts-ignore
@@ -1519,7 +1606,7 @@ describe('requests', () => {
             ];
         });
 
-        return animal.saveAll({ relations: ['pastOwners'] }).then(() => {
+        return animal.save({ relations: ['pastOwners'] }).then(() => {
             // @ts-ignore
             expect(animal.pastOwners.map('id')).toEqual([100, 125]);
         });
@@ -1539,7 +1626,7 @@ describe('requests', () => {
             return [400, animalMultiPutError];
         });
 
-        return animal.saveAll({ relations: ['kind'] }).then(
+        return animal.save({ relations: ['kind'] }).then(
             () => {},
             err => {
                 if (!err.response) {
@@ -1580,7 +1667,7 @@ describe('requests', () => {
             return [400, animalMultiPutError];
         });
 
-        return animal.validateAll({ relations: ['kind'] }).then(
+        return animal.validate({ relations: ['kind'] }).then(
             () => {},
             err => {
                 if (!err.response) {
@@ -1625,14 +1712,14 @@ describe('requests', () => {
         });
 
         const options = { relations: ['pastOwners.town'] };
-        return animal.saveAll(options).then(
+        return animal.save(options).then(
             () => {},
             err => {
                 if (!err.response) {
                     throw err;
                 }
                 mock.onAny().replyOnce(200, { idmap: [] });
-                return animal.saveAll(options).then(() => {
+                return animal.save(options).then(() => {
                     const valErrors1 = toJS(
                         // @ts-ignore
                         animal.pastOwners.at(0).backendValidationErrors
@@ -1665,14 +1752,14 @@ describe('requests', () => {
         });
 
         const options = { relations: ['pastOwners.town'] };
-        return animal.validateAll(options).then(
+        return animal.validate(options).then(
             () => {},
             err => {
                 if (!err.response) {
                     throw err;
                 }
                 mock.onAny().replyOnce(200, { idmap: [] });
-                return animal.validateAll(options).then(() => {
+                return animal.validate(options).then(() => {
                     const valErrors1 = toJS(
                         // @ts-ignore
                         animal.pastOwners.at(0).backendValidationErrors
@@ -1702,7 +1789,26 @@ describe('requests', () => {
             return [201, animalMultiPutResponse];
         });
 
-        return animal.saveAll({ relations: ['kind'] });
+        return animal.save({ relations: ['kind'] });
+    });
+
+    test('save all with not defined relation error', () => {
+        const animal = new Animal(
+            // @ts-ignore
+            { id: 10, name: 'Doggo', kind: { name: 'Dog' } },
+            { relations: ['kind'] }
+        );
+        mock.onAny().replyOnce(config => {
+            expect(config.url).toBe('/api/animal/');
+            expect(config.method).toBe('put');
+            const putData = JSON.parse(config.data);
+            expect(putData).toMatchSnapshot();
+            return [201, animalMultiPutResponse];
+        });
+        return animal.save({ relations: ['kind', 'owner'] }).catch((e) => {
+            const error = 'Relation \'owner\' is not defined in relations'
+            expect(e.message).toEqual(error);
+        });
     });
 
     test('save all with empty response from backend', () => {
@@ -1715,7 +1821,7 @@ describe('requests', () => {
             return [201, {}];
         });
 
-        return animal.saveAll();
+        return animal.save();
     });
 
     test('save all fail', () => {
@@ -1724,7 +1830,7 @@ describe('requests', () => {
             return [500, {}];
         });
 
-        const promise = animal.saveAll();
+        const promise = animal.save();
         expect(animal.isLoading).toBe(true);
         return promise.catch(() => {
             expect(animal.isLoading).toBe(false);
@@ -1877,7 +1983,7 @@ describe('requests', () => {
             return [200, {}];
         });
 
-        return animal.saveAll({ relations: ['kind.breed'] }).then(() => {
+        return animal.save({ relations: ['kind.breed'] }).then(() => {
             expect(animal.hasUserChanges).toBe(false);
         });
     });
@@ -1901,7 +2007,7 @@ describe('requests', () => {
             return [200, {}];
         });
 
-        return animal.saveAll({ relations: ['kind.breed'] }).then(() => {
+        return animal.save({ relations: ['kind.breed'] }).then(() => {
             expect(animal.hasUserChanges).toBe(true);
             // @ts-ignore
             expect(animal.pastOwners.hasUserChanges).toBe(true);
@@ -1932,7 +2038,7 @@ describe('requests', () => {
             return [200, {}];
         });
 
-        return animal.saveAll({ relations: ['pastOwners'] }).then(() => {
+        return animal.save({ relations: ['pastOwners'] }).then(() => {
             // @ts-ignore
             expect(animal.pastOwners.hasUserChanges).toBe(false);
             expect(animal.hasUserChanges).toBe(false);
@@ -1959,7 +2065,7 @@ describe('requests', () => {
             return [200, {}];
         });
 
-        return animal.saveAll().then(() => {
+        return animal.save().then(() => {
             // @ts-ignore
             expect(animal.pastOwners.hasUserChanges).toBe(true);
             expect(animal.hasUserChanges).toBe(true);
@@ -2750,4 +2856,45 @@ describe('negative id instead of null', () => {
         expect(copiedKind.id).toBeLessThan(0);
     });
 
+});
+
+/**
+ * Test that for withs, the ordering is taken from the ids on the main model, and not in the withs.
+ *
+ * i.e.
+ *
+ * data {
+ *      "past_owners": [
+ *       55,
+ *       66
+ *     ],
+ * }
+ * with: {past_owners: [
+ *  {id:66},
+ *  {id:55}
+ * ])
+ *
+ * Past owners will be sorted 55, 66, and not the other way around
+ *
+ *
+ */
+ test('Parsing inconsistent ordering of withs', () => {
+
+    const animal = new Animal(null, {
+        relations: ['pastOwners.town'],
+    });
+
+    // @ts-ignore
+    expect(animal.pastOwners).not.toBeUndefined();
+    // @ts-ignore
+    expect(animal.pastOwners).toBeInstanceOf(PersonStore);
+
+    animal.fromBackend({
+        data: inconsistentOrderingWith.data,
+        repos: inconsistentOrderingWith.with,
+        relMapping: inconsistentOrderingWith.with_mapping,
+    });
+
+    // @ts-ignore
+    expect(animal.pastOwners.map('id')).toEqual([55, 66]);
 });

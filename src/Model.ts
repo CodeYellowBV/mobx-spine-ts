@@ -5,11 +5,12 @@ import {
 import { camelToSnake, snakeToCamel, forNestedRelations, relationsToNestedKeys } from "./Utils";
 import {
     forIn, uniqueId, result, mapValues, isPlainObject, isArray,
-    uniq, uniqBy, get, omit, mapKeys, each
+    uniq, uniqBy, omit, mapKeys, each
 } from 'lodash';
 import {Store} from "./Store";
 import baseFromBackend from "./Model/FromBackend";
 import Api from './Api';
+import Axios from 'axios';
 
 function concatInDict(dict: object, key: string, value: any) {
     dict[key] = dict[key] ? dict[key].concat(value) : value;
@@ -113,6 +114,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
     __activeCurrentRelations: string[] = [];
 
     __store: Store<T, Model<T>>;
+    abortController: AbortController;
 
     @observable __pendingRequestCount: number = 0;
     @observable __fetchParams: object = {};
@@ -160,6 +162,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
     private afterConstructor(data?: ParseData<T>, options?: ModelOptions<T>) {
         options = options || {};
         this.__store = options.store;
+        this.abortController = new AbortController();
 
         // Fin all the attributes
         forIn(this, (value: any, key: string) => {
@@ -246,7 +249,7 @@ export abstract class Model<T extends ModelData> implements WorkAround {
             } else if (this.__activeCurrentRelations.includes(attr)) {
 
                 // Parse the relations
-                if (isPlainObject(value) || (isArray(value) && (isPlainObject(get(value, '[0]')) || value['length'] === 0))) {
+                if (isPlainObject(value) || (isArray(value) && (value as any[]).every(isPlainObject))) {
                     this[attr].parse(value);
                 } else if (value === null) {
                     // The relation is cleared.
@@ -466,24 +469,8 @@ export abstract class Model<T extends ModelData> implements WorkAround {
         return Promise.all(promises);
     }
 
-    /**
-     * Validates a model and relations by sending a save request to binder with the validate header set. Binder will return the validation
-     * errors without actually committing the save
-     *
-     * @param options - same as for a normal saveAll request, example {relations:['foo'], onlyChanges: true}
-     */
-    validateAll(options: SaveAllParams<T> = {}){
-        // Add the validate option
-        if (options.params){
-            options.params.validate = true
-        } else {
-            options.params = { validate: true };
-        }
-        return this.saveAll(options).catch((err)=>{throw err});
-    }
-
     @action
-    saveAll(options: SaveAllParams<T> = {}): Promise<object> {
+    _saveAll(options: SaveAllParams<T> = {}): Promise<object> {
         this.clearValidationErrors();
         return this.wrapPendingRequestCount(
             this.__getApi()
@@ -567,11 +554,24 @@ export abstract class Model<T extends ModelData> implements WorkAround {
         } else {
             options.params = { validate: true };
         }
-        return this.save(options).catch((err)=>{throw err});
+
+        if (options.relations && options.relations.length > 0) {
+            return this._saveAll(options).catch(error => { throw error; });
+        } else {
+            return this.save(options).catch((err)=>{throw err});
+        }
+    }
+
+    save(options: SaveParams<T> = {}) {
+        if (options.relations && options.relations.length > 0) {
+            return this._saveAll(options);
+        } else {
+            return this._save(options);
+        }
     }
 
     @action
-    save(options: SaveParams<T> = {}) {
+    _save(options: SaveParams<T> = {}) {
         this.clearValidationErrors();
         return this.wrapPendingRequestCount(
             this.__getApi()
@@ -808,10 +808,15 @@ export abstract class Model<T extends ModelData> implements WorkAround {
     }
 
     @action
-    fetch(options: { url?: string, data?: any, [x: string]: any } = {}) {
+    fetch(options: { url?: string, data?: any, cancelPreviousFetch?: boolean, [x: string]: any } = {}) {
         if (this.isNew) {
             throw new Error('[mobx-spine] Trying to fetch a model without an id');
         }
+        if (options.cancelPreviousFetch) {
+            this.abortController.abort()
+            this.abortController = new AbortController();
+        }
+        options.abortSignal = this.abortController.signal;
 
         const data = this.buildFetchData(options);
         const promise = this.wrapPendingRequestCount(
@@ -824,6 +829,13 @@ export abstract class Model<T extends ModelData> implements WorkAround {
             .then(action(res => {
                 this.fromBackend(res);
             }))
+            .catch(e => {
+                if (Axios.isCancel(e)) {
+                    return null;
+                } else {
+                    throw e;
+                }
+            })
         );
 
         return promise;

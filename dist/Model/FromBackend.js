@@ -12,7 +12,7 @@ const Store_1 = require("../Store");
  * @param input
  */
 function fromBackend(input) {
-    const response = BinderResponse_1.modelResponseAdapter(input);
+    const response = (0, BinderResponse_1.modelResponseAdapter)(input);
     const { data } = response;
     parseFromBackendRelations.bind(this)(response);
     if (data) {
@@ -26,7 +26,7 @@ exports.default = fromBackend;
  * @param response
  */
 function parseFromBackendRelations(response) {
-    const relationTree = Utils_1.createRelationTree(this.__activeRelations);
+    const relationTree = (0, Utils_1.createRelationTree)(this.__activeRelations);
     if (!response.data) {
         return;
     }
@@ -150,7 +150,7 @@ function parseOneToRelations(response, relationName) {
         return;
     }
     let relationData;
-    if (lodash_1.isObject(relationDataRaw)) {
+    if ((0, lodash_1.isObject)(relationDataRaw)) {
         // Case 2, we have a nested relation. Then we take the data directly
         relationData = relationDataRaw;
     }
@@ -200,7 +200,7 @@ function parseManyToRelations(response, relationName) {
     }
     // Heuristic if we have a nested relation. If it is not nested, it is a number. Otherwise it is an object
     // Relations that are empty are always not nested
-    const isNested = relationDataRaw.length && lodash_1.isObject(relationDataRaw[0]);
+    const isNested = relationDataRaw.length && (0, lodash_1.isObject)(relationDataRaw[0]);
     // Initate the store
     // @ts-ignore
     const RelationStore = this.relations()[relationName];
@@ -218,10 +218,10 @@ function parseManyToRelations(response, relationName) {
         const collectionData = response.with[backendModelName];
         // Get the actual array of model data for the store
         if (collectionData) {
-            relationData = collectionData.filter((modelData) => {
-                const relationId = modelData.id;
-                return relationDataRaw.includes(relationId);
-            });
+            const idIndexes = Object.fromEntries(relationDataRaw.map((id, index) => [id, index]));
+            const models = collectionData.filter(({ id }) => idIndexes[id] !== undefined);
+            models.sort((l, r) => idIndexes[l.id] - idIndexes[r.id]);
+            relationData = models;
         }
     }
     let relevant = false;

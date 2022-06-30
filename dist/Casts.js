@@ -34,7 +34,7 @@ class CastsClass {
                 if (value === null || value === undefined) {
                     return null;
                 }
-                return moment_1.default(value, 'YYYY-MM-DD');
+                return (0, moment_1.default)(value, 'YYYY-MM-DD');
             },
             toJS(attr, value) {
                 if (value === null || value === undefined) {
@@ -50,7 +50,7 @@ class CastsClass {
                 if (value === null) {
                     return null;
                 }
-                return moment_1.default(value);
+                return (0, moment_1.default)(value);
             },
             toJS(attr, value) {
                 if (value === null) {

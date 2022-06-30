@@ -15,6 +15,7 @@ const Utils_1 = require("./Utils");
 const lodash_1 = require("lodash");
 const Store_1 = require("./Store");
 const FromBackend_1 = __importDefault(require("./Model/FromBackend"));
+const axios_1 = __importDefault(require("axios"));
 function concatInDict(dict, key, value) {
     dict[key] = dict[key] ? dict[key].concat(value) : value;
 }
@@ -23,7 +24,7 @@ function concatInDict(dict, key, value) {
 const RE_SPLIT_FIRST_RELATION = /([^.]+)\.(.+)/;
 class Model {
     constructor(data, options) {
-        this.cid = lodash_1.uniqueId('m');
+        this.cid = (0, lodash_1.uniqueId)('m');
         this.api = null;
         // A list of all attributes of this model
         this.__attributes = [];
@@ -72,23 +73,24 @@ class Model {
     afterConstructor(data, options) {
         options = options || {};
         this.__store = options.store;
+        this.abortController = new AbortController();
         // Fin all the attributes
-        lodash_1.forIn(this, (value, key) => {
+        (0, lodash_1.forIn)(this, (value, key) => {
             // Keys startin with __ are internal
             if (key.startsWith('__')) {
                 return;
             }
-            if (!mobx_1.isObservableProp(this, key)) {
+            if (!(0, mobx_1.isObservableProp)(this, key)) {
                 return;
             }
             this.__attributes.push(key);
             let newValue = value;
             // An array or object observable can be mutated, so we want to ensure we always have
             // the original not-yet-mutated object/array.
-            if (mobx_1.isObservableArray(value)) {
+            if ((0, mobx_1.isObservableArray)(value)) {
                 newValue = value.slice();
             }
-            else if (mobx_1.isObservableObject(value)) {
+            else if ((0, mobx_1.isObservableObject)(value)) {
                 newValue = Object.assign({}, value);
             }
             this.__originalAttributes[key] = newValue;
@@ -129,10 +131,10 @@ class Model {
      * @param data
      */
     parse(data) {
-        if (!lodash_1.isPlainObject(data)) {
+        if (!(0, lodash_1.isPlainObject)(data)) {
             throw Error(`Parameter supplied to \`parse()\` is not an object, got: ${JSON.stringify(data)}`);
         }
-        lodash_1.forIn(data, (value, key) => {
+        (0, lodash_1.forIn)(data, (value, key) => {
             const attr = this.constructor['fromBackendAttrKey'](key);
             // parse normal attributes
             if (this.__attributes.includes(attr)) {
@@ -140,7 +142,7 @@ class Model {
             }
             else if (this.__activeCurrentRelations.includes(attr)) {
                 // Parse the relations
-                if (lodash_1.isPlainObject(value) || (lodash_1.isArray(value) && (lodash_1.isPlainObject(lodash_1.get(value, '[0]')) || value['length'] === 0))) {
+                if ((0, lodash_1.isPlainObject)(value) || ((0, lodash_1.isArray)(value) && value.every(lodash_1.isPlainObject))) {
                     this[attr].parse(value);
                 }
                 else if (value === null) {
@@ -187,9 +189,9 @@ class Model {
         const casts = this.casts();
         const cast = casts[attr];
         if (cast !== undefined) {
-            return mobx_1.toJS(cast.toJS(attr, value));
+            return (0, mobx_1.toJS)(cast.toJS(attr, value));
         }
-        return mobx_1.toJS(value);
+        return (0, mobx_1.toJS)(value);
     }
     toJS() {
         const output = {};
@@ -208,7 +210,7 @@ class Model {
         // get the resource name from path
         const id = this['id'];
         if (this.fileFields().includes(file) && !this.isNew) {
-            return `${lodash_1.result(this, 'urlRoot')}${id ? `${id}/` : ''}${file}/?encode=true`;
+            return `${(0, lodash_1.result)(this, 'urlRoot')}${id ? `${id}/` : ''}${file}/?encode=true`;
         }
         return '';
     }
@@ -217,7 +219,7 @@ class Model {
         return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
     }
     saveFile(name) {
-        const snakeName = Utils_1.camelToSnake(name);
+        const snakeName = (0, Utils_1.camelToSnake)(name);
         if (this.__fileChanges[name]) {
             const file = this.__fileChanges[name];
             const data = new FormData();
@@ -231,7 +233,7 @@ class Model {
                 data.append(name, file, file.name);
             }
             return (this.api.post(`${this.url}${snakeName}/`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
-                .then(mobx_1.action((res) => {
+                .then((0, mobx_1.action)((res) => {
                 this.__fileExists[name] = true;
                 delete this.__fileChanges[name];
                 this.saveFromBackend(res);
@@ -240,7 +242,7 @@ class Model {
         else if (this.__fileDeletions[name]) {
             if (this.__fileExists[name]) {
                 return (this.api.delete(`${this.url}${snakeName}/`)
-                    .then(mobx_1.action(() => {
+                    .then((0, mobx_1.action)(() => {
                     this.__fileExists[name] = false;
                     delete this.__fileDeletions[name];
                     this.saveFromBackend({ data: {
@@ -322,42 +324,26 @@ class Model {
         }
         return Promise.all(promises);
     }
-    /**
-     * Validates a model and relations by sending a save request to binder with the validate header set. Binder will return the validation
-     * errors without actually committing the save
-     *
-     * @param options - same as for a normal saveAll request, example {relations:['foo'], onlyChanges: true}
-     */
-    validateAll(options = {}) {
-        // Add the validate option
-        if (options.params) {
-            options.params.validate = true;
-        }
-        else {
-            options.params = { validate: true };
-        }
-        return this.saveAll(options).catch((err) => { throw err; });
-    }
-    saveAll(options = {}) {
+    _saveAll(options = {}) {
         this.clearValidationErrors();
         return this.wrapPendingRequestCount(this.__getApi()
             .saveAllModels({
-            url: lodash_1.result(this, 'urlRoot'),
+            url: (0, lodash_1.result)(this, 'urlRoot'),
             model: this,
             data: this.toBackendAll({
                 data: options.data,
                 mapData: options.mapData,
-                nestedRelations: Utils_1.relationsToNestedKeys(options.relations || []),
+                nestedRelations: (0, Utils_1.relationsToNestedKeys)(options.relations || []),
                 onlyChanges: options.onlyChanges,
             }),
-            requestOptions: lodash_1.omit(options, 'relations', 'data', 'mapData'),
+            requestOptions: (0, lodash_1.omit)(options, 'relations', 'data', 'mapData'),
         })
-            .then(mobx_1.action(res => {
+            .then((0, mobx_1.action)(res => {
             // Don't update the models if we are only validating them
             if (!options.params || !options.params.validate) {
                 this.saveFromBackend(res);
                 this.clearUserFieldChanges();
-                Utils_1.forNestedRelations(this, Utils_1.relationsToNestedKeys(options.relations || []), relation => {
+                (0, Utils_1.forNestedRelations)(this, (0, Utils_1.relationsToNestedKeys)(options.relations || []), relation => {
                     if (relation instanceof Model) {
                         relation.clearUserFieldChanges();
                     }
@@ -365,9 +351,9 @@ class Model {
                         relation.clearSetChanges();
                     }
                 });
-                return this.saveAllFiles(Utils_1.relationsToNestedKeys(options.relations || [])).then(() => {
+                return this.saveAllFiles((0, Utils_1.relationsToNestedKeys)(options.relations || [])).then(() => {
                     this.clearUserFileChanges();
-                    Utils_1.forNestedRelations(this, Utils_1.relationsToNestedKeys(options.relations || []), relation => {
+                    (0, Utils_1.forNestedRelations)(this, (0, Utils_1.relationsToNestedKeys)(options.relations || []), relation => {
                         if (relation instanceof Model) {
                             relation.clearUserFileChanges();
                         }
@@ -376,7 +362,7 @@ class Model {
                 });
             }
         }))
-            .catch(mobx_1.action(err => {
+            .catch((0, mobx_1.action)(err => {
             if (err.valErrors) {
                 this.parseValidationErrors(err.valErrors);
             }
@@ -394,7 +380,7 @@ class Model {
                 this.id = idMap[1];
             }
         }
-        lodash_1.each(this.__activeCurrentRelations, relName => {
+        (0, lodash_1.each)(this.__activeCurrentRelations, relName => {
             const rel = this[relName];
             rel.__parseNewIds(idMaps);
         });
@@ -413,9 +399,22 @@ class Model {
         else {
             options.params = { validate: true };
         }
-        return this.save(options).catch((err) => { throw err; });
+        if (options.relations && options.relations.length > 0) {
+            return this._saveAll(options).catch(error => { throw error; });
+        }
+        else {
+            return this.save(options).catch((err) => { throw err; });
+        }
     }
     save(options = {}) {
+        if (options.relations && options.relations.length > 0) {
+            return this._saveAll(options);
+        }
+        else {
+            return this._save(options);
+        }
+    }
+    _save(options = {}) {
         this.clearValidationErrors();
         return this.wrapPendingRequestCount(this.__getApi()
             .saveModel({
@@ -427,12 +426,15 @@ class Model {
                 onlyChanges: options.onlyChanges,
             }),
             isNew: this.isNew,
-            requestOptions: lodash_1.omit(options, 'url', 'data', 'mapData')
+            requestOptions: (0, lodash_1.omit)(options, 'url', 'data', 'mapData')
         })
-            .then(mobx_1.action(res => {
+            .then((0, mobx_1.action)(res => {
             // Don't update the model when we only want to validate
             if (!options.params || !options.params.validate) {
-                this.saveFromBackend(Object.assign(Object.assign({}, res), { data: lodash_1.omit(res.data, this.fileFields().map(Utils_1.camelToSnake)) }));
+                this.saveFromBackend({
+                    ...res,
+                    data: (0, lodash_1.omit)(res.data, this.fileFields().map(Utils_1.camelToSnake)),
+                });
                 this.clearUserFieldChanges();
                 return this.saveFiles().then(() => {
                     this.clearUserFileChanges();
@@ -440,7 +442,7 @@ class Model {
                 });
             }
         }))
-            .catch(mobx_1.action(err => {
+            .catch((0, mobx_1.action)(err => {
             if (err.valErrors) {
                 this.parseValidationErrors(err.valErrors);
             }
@@ -479,7 +481,7 @@ class Model {
             this.__changes.push(name);
         }
         if (this.__activeCurrentRelations.includes(name)) {
-            if (lodash_1.isArray(value)) {
+            if ((0, lodash_1.isArray)(value)) {
                 this[name].clear();
                 this[name].add(value.map(v => v.toJS()));
             }
@@ -580,7 +582,7 @@ class Model {
         if (!this.api) {
             throw new Error('[mobx-spine] You are trying to perform an API request without an `api` property defined on the model.');
         }
-        if (!lodash_1.result(this, 'urlRoot')) {
+        if (!(0, lodash_1.result)(this, 'urlRoot')) {
             throw new Error('You are trying to perform an API request without a `urlRoot` property defined on the model.');
         }
         return this.api;
@@ -599,9 +601,9 @@ class Model {
         return this.wrapPendingRequestCount(this.__getApi()
             .deleteModel({
             url: options.url || this.url,
-            requestOptions: lodash_1.omit(options, ['immediate', 'url']),
+            requestOptions: (0, lodash_1.omit)(options, ['immediate', 'url']),
         })
-            .then(mobx_1.action(() => {
+            .then((0, mobx_1.action)(() => {
             if (!options.immediate) {
                 removeFromStore();
             }
@@ -611,24 +613,37 @@ class Model {
         if (this.isNew) {
             throw new Error('[mobx-spine] Trying to fetch a model without an id');
         }
+        if (options.cancelPreviousFetch) {
+            this.abortController.abort();
+            this.abortController = new AbortController();
+        }
+        options.abortSignal = this.abortController.signal;
         const data = this.buildFetchData(options);
         const promise = this.wrapPendingRequestCount(this.__getApi()
             .fetchModel({
             url: options.url || this.url,
             data,
-            requestOptions: lodash_1.omit(options, ['data', 'url']),
+            requestOptions: (0, lodash_1.omit)(options, ['data', 'url']),
         })
-            .then(mobx_1.action(res => {
+            .then((0, mobx_1.action)(res => {
             this.fromBackend(res);
-        })));
+        }))
+            .catch(e => {
+            if (axios_1.default.isCancel(e)) {
+                return null;
+            }
+            else {
+                throw e;
+            }
+        }));
         return promise;
     }
     clear() {
-        lodash_1.forIn(this.__originalAttributes, (value, key) => {
+        (0, lodash_1.forIn)(this.__originalAttributes, (value, key) => {
             // If it is our primary key, and the primary key is negative, we generate a new negative pk, else we set it
             // to the value
             if (key === this['id'] && value < 0) {
-                this[key] = -1 * lodash_1.uniqueId();
+                this[key] = -1 * (0, lodash_1.uniqueId)();
             }
             else {
                 this[key] = value;
@@ -648,8 +663,8 @@ class Model {
             // When there is no id or negative id, the backend may use the string 'null'. Bit weird, but eh.
             const errorsForModel = valErrors[bname][id] || valErrors[bname]['null'];
             if (errorsForModel) {
-                const camelCasedErrors = lodash_1.mapKeys(errorsForModel, (_value, key) => Utils_1.snakeToCamel(key));
-                const formattedErrors = lodash_1.mapValues(camelCasedErrors, valError => {
+                const camelCasedErrors = (0, lodash_1.mapKeys)(errorsForModel, (_value, key) => (0, Utils_1.snakeToCamel)(key));
+                const formattedErrors = (0, lodash_1.mapValues)(camelCasedErrors, valError => {
                     return valError.map(this.validationErrorFormatter);
                 });
                 this.__backendValidationErrors = formattedErrors;
@@ -678,8 +693,8 @@ class Model {
                 if (data[relBackendName] === null) {
                     data[relBackendName] = rel.getNegativeId();
                 }
-                else if (lodash_1.isArray(data[relBackendName])) {
-                    data[relBackendName] = lodash_1.uniq(data[relBackendName].map((pk, i) => pk === null ? rel.at(i).getNegativeId() : pk));
+                else if ((0, lodash_1.isArray)(data[relBackendName])) {
+                    data[relBackendName] = (0, lodash_1.uniq)(data[relBackendName].map((pk, i) => pk === null ? rel.at(i).getNegativeId() : pk));
                 }
                 else if (options.onlyChanges && !rel.hasUserChanges) {
                     return;
@@ -697,11 +712,11 @@ class Model {
                     // De-duplicate relations based on id
                     // TODO: Avoid serializing recursively multiple times in the first place?
                     // TODO: What if different relations have different "freshness"?
-                    relations[realBackendName] = lodash_1.uniqBy(relations[realBackendName], 'id');
+                    relations[realBackendName] = (0, lodash_1.uniqBy)(relations[realBackendName], 'id');
                 }
                 // There could still be changes in nested relations,
                 // include those anyway!
-                lodash_1.forIn(relBackendData.relations, (relB, key) => {
+                (0, lodash_1.forIn)(relBackendData.relations, (relB, key) => {
                     concatInDict(relations, key, relB);
                 });
             }
@@ -740,7 +755,7 @@ class Model {
             }
         });
         // extendObservable where we omit the fields that are already created from other relations
-        mobx_1.extendObservable(this, lodash_1.mapValues(lodash_1.omit(relationModels, Object.keys(relationModels).filter(rel => !!this[rel])), (otherRelationNames, relationName) => {
+        (0, mobx_1.extendObservable)(this, (0, lodash_1.mapValues)((0, lodash_1.omit)(relationModels, Object.keys(relationModels).filter(rel => !!this[rel])), (otherRelationNames, relationName) => {
             const RelationModel = relations[relationName];
             if (!RelationModel) {
                 throw Error(`Specified relation "${relationName}" does not exist on model.`);
@@ -872,7 +887,7 @@ class Model {
     get url() {
         // @ts-ignore
         const id = this.id;
-        return `${lodash_1.result(this, 'urlRoot')}${!this.isNew ? `${id}/` : ''}`;
+        return `${(0, lodash_1.result)(this, 'urlRoot')}${!this.isNew ? `${id}/` : ''}`;
     }
     relations() {
         return {};
@@ -887,7 +902,7 @@ class Model {
      * @param attrKey
      */
     static toBackendAttrKey(attrKey) {
-        return Utils_1.camelToSnake(attrKey);
+        return (0, Utils_1.camelToSnake)(attrKey);
     }
     /**
      * In the backend we use snake case names. In the frontend we use snakeCase names everywhere. THis translates
@@ -896,7 +911,7 @@ class Model {
      * @param attrKey
      */
     static fromBackendAttrKey(attrKey) {
-        return Utils_1.snakeToCamel(attrKey);
+        return (0, Utils_1.snakeToCamel)(attrKey);
     }
     set backendResourceName(v) {
         throw Error('`backendResourceName` should be a static property on the model.');
@@ -954,10 +969,10 @@ __decorate([
 ], Model.prototype, "isLoading", null);
 __decorate([
     mobx_1.action
-], Model.prototype, "saveAll", null);
+], Model.prototype, "_saveAll", null);
 __decorate([
     mobx_1.action
-], Model.prototype, "save", null);
+], Model.prototype, "_save", null);
 __decorate([
     mobx_1.action
 ], Model.prototype, "setInput", null);

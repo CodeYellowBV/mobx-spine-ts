@@ -27,6 +27,7 @@ const customers_location_best_cook_work_places_json_1 = __importDefault(require(
 const animal_with_kind_breed_nested_json_1 = __importDefault(require("./fixtures/animal-with-kind-breed-nested.json"));
 const animals_with_past_owners_and_town_json_1 = __importDefault(require("./fixtures/animals-with-past-owners-and-town.json"));
 const customers_with_town_cook_restaurant_json_1 = __importDefault(require("./fixtures/customers-with-town-cook-restaurant.json"));
+const inconsistent_ordering_withs_json_1 = __importDefault(require("./fixtures/inconsistent-ordering-withs.json"));
 beforeEach(() => {
     // Refresh lodash's `_.uniqueId` internal state for every test
     let idCounter = 0;
@@ -886,16 +887,16 @@ test('clear with relations', () => {
 test('clear with array attribute', () => {
     const animal = new Animal_1.AnimalWithArray();
     animal.foo.push('bar');
-    expect(mobx_1.toJS(animal.foo)).toEqual(['bar']);
+    expect((0, mobx_1.toJS)(animal.foo)).toEqual(['bar']);
     animal.clear();
-    expect(mobx_1.toJS(animal.foo)).toEqual([]);
+    expect((0, mobx_1.toJS)(animal.foo)).toEqual([]);
 });
 test('clear with object attribute', () => {
     const animal = new Animal_1.AnimalWithObject();
     animal.foo['bar'] = true;
-    expect(mobx_1.toJS(animal.foo)).toEqual({ bar: true });
+    expect((0, mobx_1.toJS)(animal.foo)).toEqual({ bar: true });
     animal.clear();
-    expect(mobx_1.toJS(animal.foo)).toEqual({});
+    expect((0, mobx_1.toJS)(animal.foo)).toEqual({});
 });
 test('toJS with basic attributes', () => {
     const animal = new Animal_1.Animal({
@@ -954,7 +955,7 @@ test('fetch without url', () => {
 test('setInput to clear backend validation errors', () => {
     const animal = new Animal_1.Animal();
     animal.__backendValidationErrors = { name: ['required'] };
-    expect(mobx_1.toJS(animal.backendValidationErrors['name'])).toEqual(['required']);
+    expect((0, mobx_1.toJS)(animal.backendValidationErrors['name'])).toEqual(['required']);
     animal.setInput('name', 'Jo');
     expect(animal.name).toBe('Jo');
     expect(animal.backendValidationErrors['name']).toBe(undefined);
@@ -975,7 +976,7 @@ test('allow custom validationErrorFormatter', () => {
             },
         },
     });
-    expect(mobx_1.toJS(location.backendValidationErrors)).toEqual({
+    expect((0, mobx_1.toJS)(location.backendValidationErrors)).toEqual({
         name: ['Error 1', 'Error 2'],
     });
 });
@@ -1045,6 +1046,63 @@ describe('requests', () => {
         return animal.fetch().then(() => {
             expect(animal.id).toBe(2);
         });
+    });
+    test('Save model with file', () => {
+        const file = new Animal_1.File({ id: 5 });
+        const dataFile = new Blob(['foo'], { type: 'text/plain' });
+        file.setInput('dataFile', dataFile);
+        mock.onAny().replyOnce(config => {
+            expect(config.method).toBe('patch');
+            expect(config.data).toBeInstanceOf(FormData);
+            const keys = Array.from(config.data.keys()).sort();
+            expect(keys).toEqual(['data', 'file:data_file']);
+            const data = JSON.parse(config.data.get('data'));
+            expect(data).toEqual({
+                data_file: null,
+                id: 5,
+            });
+            return [200, { id: 5, data_file: '/api/dataFile' }];
+        });
+        file.save().then(() => {
+            expect(file.id).toBe(5);
+            expect(file.dataFile).toBe('/api/dataFile');
+        });
+    });
+    test('Save model with relations and multiple files', () => {
+        const fileCabinet = new Animal_1.FileCabinet({ id: 5 }, { relations: ['files'] });
+        // @ts-ignore
+        fileCabinet.files.add([
+            { dataFile: new Blob(['bar'], { type: 'text/plain' }) },
+            { dataFile: new Blob(['foo'], { type: 'text/plain' }) },
+            { dataFile: new Blob(['baz'], { type: 'text/plain' }) },
+        ]);
+        mock.onAny().replyOnce(config => {
+            expect(config.method).toBe('put');
+            expect(config.data).toBeInstanceOf(FormData);
+            const keys = Array.from(config.data.keys()).sort();
+            expect(keys).toEqual([
+                'data',
+                'file:with.files.0.data_file',
+                'file:with.files.1.data_file',
+                'file:with.files.2.data_file'
+            ]);
+            const data = JSON.parse(config.data.get('data'));
+            expect(data).toEqual({
+                data: [{
+                        id: 5,
+                        files: [-2, -3, -4],
+                    }],
+                with: {
+                    files: [
+                        { id: -2, data_file: null },
+                        { id: -3, data_file: null },
+                        { id: -4, data_file: null },
+                    ],
+                },
+            });
+            return [200, {}];
+        });
+        fileCabinet.save({ relations: ['files'] });
     });
     test('fetch with relations', () => {
         const animal = new Animal_1.Animal({ id: 2 }, {
@@ -1138,7 +1196,7 @@ describe('requests', () => {
         ], Zebra);
         const zebra = new Zebra({ id: 1 });
         zebra.fetch({ skipRequestErrors: true });
-        expect(spy).toHaveBeenCalledWith('/zebra/1/', { with: null }, { skipRequestErrors: true });
+        expect(spy).toHaveBeenCalledWith('/zebra/1/', { with: null }, expect.objectContaining({ skipRequestErrors: true }));
     });
     test('fetch with auto-generated URL', () => {
         const kind = new Animal_1.KindResourceName({ id: 2 });
@@ -1147,6 +1205,32 @@ describe('requests', () => {
             return [200, {}];
         });
         return kind.fetch();
+    });
+    test('cancel previous fetch', () => {
+        const animal = new Animal_1.Animal({ id: 2 });
+        mock.onAny().reply(config => {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    if (config.signal.aborted) {
+                        reject({ __CANCEL__: true });
+                    }
+                    resolve([200, { data: { id: 2, name: 'Madagascar' } }]);
+                }, 1000);
+            });
+        });
+        /**
+         * Here we are testing that the first request gets cancelled before it is resolved
+         * causing the animal object to not get hydrated, while the second request resolves
+         * successfully later, and the name attribute is hydrated properly
+         */
+        return Promise.all([
+            animal.fetch().then(() => {
+                expect(animal.name).toBe('');
+            }),
+            animal.fetch({ cancelPreviousFetch: true }).then(() => {
+                expect(animal.name).toBe('Madagascar');
+            })
+        ]);
     });
     test('save new with basic properties', () => {
         const animal = new Animal_1.Animal({ name: 'Doggo' });
@@ -1195,7 +1279,7 @@ describe('requests', () => {
         const animal = new Animal_1.Animal({ name: 'Nope' });
         mock.onAny().replyOnce(400, save_fail_json_1.default);
         return animal.save().catch(() => {
-            const valErrors = mobx_1.toJS(animal.backendValidationErrors);
+            const valErrors = (0, mobx_1.toJS)(animal.backendValidationErrors);
             expect(valErrors).toEqual({
                 name: ['required'],
                 kind: ['blank'],
@@ -1209,7 +1293,7 @@ describe('requests', () => {
             return [400, save_fail_json_1.default];
         });
         return animal.validate().catch(() => {
-            const valErrors = mobx_1.toJS(animal.backendValidationErrors);
+            const valErrors = (0, mobx_1.toJS)(animal.backendValidationErrors);
             expect(valErrors).toEqual({
                 name: ['required'],
                 kind: ['blank'],
@@ -1220,7 +1304,7 @@ describe('requests', () => {
         const animal = new Animal_1.Animal({ name: 'Nope' });
         mock.onAny().replyOnce(400, save_new_fail_json_1.default);
         return animal.save().catch(() => {
-            const valErrors = mobx_1.toJS(animal.backendValidationErrors);
+            const valErrors = (0, mobx_1.toJS)(animal.backendValidationErrors);
             expect(valErrors).toEqual({
                 name: ['invalid'],
             });
@@ -1233,7 +1317,7 @@ describe('requests', () => {
             return [400, save_new_fail_json_1.default];
         });
         return animal.validate().catch(() => {
-            const valErrors = mobx_1.toJS(animal.backendValidationErrors);
+            const valErrors = (0, mobx_1.toJS)(animal.backendValidationErrors);
             expect(valErrors).toEqual({
                 name: ['invalid'],
             });
@@ -1243,7 +1327,7 @@ describe('requests', () => {
         const animal = new Animal_1.Animal({ name: 'Nope' });
         mock.onAny().replyOnce(500, {});
         return animal.save().catch(() => {
-            const valErrors = mobx_1.toJS(animal.backendValidationErrors);
+            const valErrors = (0, mobx_1.toJS)(animal.backendValidationErrors);
             expect(valErrors).toEqual({});
         });
     });
@@ -1254,7 +1338,7 @@ describe('requests', () => {
             return [500, {}];
         });
         return animal.validate().catch(() => {
-            const valErrors = mobx_1.toJS(animal.backendValidationErrors);
+            const valErrors = (0, mobx_1.toJS)(animal.backendValidationErrors);
             expect(valErrors).toEqual({});
         });
     });
@@ -1280,7 +1364,7 @@ describe('requests', () => {
             expect(JSON.parse(config.data)).toEqual({ id: 'overwritten', name: '' });
             return [201, {}];
         });
-        return animal.save({ mapData: data => (Object.assign(Object.assign({}, data), { id: 'overwritten' })) });
+        return animal.save({ mapData: data => ({ ...data, id: 'overwritten' }) });
     });
     test('save with custom and mapped data', () => {
         const animal = new Animal_1.Animal();
@@ -1288,7 +1372,7 @@ describe('requests', () => {
             expect(JSON.parse(config.data)).toEqual({ id: 'overwritten', name: '', extra_data: 'can be saved' });
             return [201, {}];
         });
-        return animal.save({ data: { extra_data: 'can be saved' }, mapData: data => (Object.assign(Object.assign({}, data), { id: 'overwritten' })) });
+        return animal.save({ data: { extra_data: 'can be saved' }, mapData: data => ({ ...data, id: 'overwritten' }) });
     });
     test('save all with relations', () => {
         const animal = new Animal_1.Animal({
@@ -1303,7 +1387,7 @@ describe('requests', () => {
             expect(config.method).toBe('put');
             return [201, animals_multi_put_response_json_1.default];
         });
-        return animal.saveAll({ relations: ['kind'] }).then(response => {
+        return animal.save({ relations: ['kind'] }).then(response => {
             expect(spy).toHaveBeenCalled();
             expect(animal.id).toBe(10);
             // @ts-ignore
@@ -1330,7 +1414,7 @@ describe('requests', () => {
             expect(config.method).toBe('put');
             return [201, animals_multi_put_response_json_1.default];
         });
-        return animal.validateAll({ relations: ['kind'] }).then(response => {
+        return animal.validate({ relations: ['kind'] }).then(response => {
             expect(spy).not.toHaveBeenCalled();
             expect(animal.id).toBe(10);
             // @ts-ignore
@@ -1356,7 +1440,7 @@ describe('requests', () => {
                 { idmap: { animal: [[-1, 10]], person: [[-2, 100]] } },
             ];
         });
-        return animal.saveAll({ relations: ['pastOwners'] }).then(() => {
+        return animal.save({ relations: ['pastOwners'] }).then(() => {
             // @ts-ignore
             expect(animal.pastOwners.map('id')).toEqual([100, 125]);
         });
@@ -1371,24 +1455,24 @@ describe('requests', () => {
         mock.onAny().replyOnce(config => {
             return [400, animals_multi_put_error_json_1.default];
         });
-        return animal.saveAll({ relations: ['kind'] }).then(() => { }, err => {
+        return animal.save({ relations: ['kind'] }).then(() => { }, err => {
             if (!err.response) {
                 throw err;
             }
             // @ts-ignore
-            expect(mobx_1.toJS(animal.backendValidationErrors).name).toEqual([
+            expect((0, mobx_1.toJS)(animal.backendValidationErrors).name).toEqual([
                 'blank',
             ]);
             // @ts-ignore
-            expect(mobx_1.toJS(animal.kind.backendValidationErrors).name).toEqual([
+            expect((0, mobx_1.toJS)(animal.kind.backendValidationErrors).name).toEqual([
                 'required',
             ]);
             expect(
             // @ts-ignore
-            mobx_1.toJS(animal.pastOwners.at(0).backendValidationErrors).name).toEqual(['required']);
+            (0, mobx_1.toJS)(animal.pastOwners.at(0).backendValidationErrors).name).toEqual(['required']);
             expect(
             // @ts-ignore
-            mobx_1.toJS(animal.pastOwners.at(0).town.backendValidationErrors)
+            (0, mobx_1.toJS)(animal.pastOwners.at(0).town.backendValidationErrors)
                 .name).toEqual(['maxlength']);
         });
     });
@@ -1402,24 +1486,24 @@ describe('requests', () => {
         mock.onAny().replyOnce(config => {
             return [400, animals_multi_put_error_json_1.default];
         });
-        return animal.validateAll({ relations: ['kind'] }).then(() => { }, err => {
+        return animal.validate({ relations: ['kind'] }).then(() => { }, err => {
             if (!err.response) {
                 throw err;
             }
             // @ts-ignore
-            expect(mobx_1.toJS(animal.backendValidationErrors).name).toEqual([
+            expect((0, mobx_1.toJS)(animal.backendValidationErrors).name).toEqual([
                 'blank',
             ]);
             // @ts-ignore
-            expect(mobx_1.toJS(animal.kind.backendValidationErrors).name).toEqual([
+            expect((0, mobx_1.toJS)(animal.kind.backendValidationErrors).name).toEqual([
                 'required',
             ]);
             expect(
             // @ts-ignore
-            mobx_1.toJS(animal.pastOwners.at(0).backendValidationErrors).name).toEqual(['required']);
+            (0, mobx_1.toJS)(animal.pastOwners.at(0).backendValidationErrors).name).toEqual(['required']);
             expect(
             // @ts-ignore
-            mobx_1.toJS(animal.pastOwners.at(0).town.backendValidationErrors)
+            (0, mobx_1.toJS)(animal.pastOwners.at(0).town.backendValidationErrors)
                 .name).toEqual(['maxlength']);
         });
     });
@@ -1435,17 +1519,17 @@ describe('requests', () => {
             return [400, animals_multi_put_error_json_1.default];
         });
         const options = { relations: ['pastOwners.town'] };
-        return animal.saveAll(options).then(() => { }, err => {
+        return animal.save(options).then(() => { }, err => {
             if (!err.response) {
                 throw err;
             }
             mock.onAny().replyOnce(200, { idmap: [] });
-            return animal.saveAll(options).then(() => {
-                const valErrors1 = mobx_1.toJS(
+            return animal.save(options).then(() => {
+                const valErrors1 = (0, mobx_1.toJS)(
                 // @ts-ignore
                 animal.pastOwners.at(0).backendValidationErrors);
                 expect(valErrors1).toEqual({});
-                const valErrors2 = mobx_1.toJS(
+                const valErrors2 = (0, mobx_1.toJS)(
                 // @ts-ignore
                 animal.pastOwners.at(0).town.backendValidationErrors);
                 expect(valErrors2).toEqual({});
@@ -1464,17 +1548,17 @@ describe('requests', () => {
             return [400, animals_multi_put_error_json_1.default];
         });
         const options = { relations: ['pastOwners.town'] };
-        return animal.validateAll(options).then(() => { }, err => {
+        return animal.validate(options).then(() => { }, err => {
             if (!err.response) {
                 throw err;
             }
             mock.onAny().replyOnce(200, { idmap: [] });
-            return animal.validateAll(options).then(() => {
-                const valErrors1 = mobx_1.toJS(
+            return animal.validate(options).then(() => {
+                const valErrors1 = (0, mobx_1.toJS)(
                 // @ts-ignore
                 animal.pastOwners.at(0).backendValidationErrors);
                 expect(valErrors1).toEqual({});
-                const valErrors2 = mobx_1.toJS(
+                const valErrors2 = (0, mobx_1.toJS)(
                 // @ts-ignore
                 animal.pastOwners.at(0).town.backendValidationErrors);
                 expect(valErrors2).toEqual({});
@@ -1492,7 +1576,23 @@ describe('requests', () => {
             expect(putData).toMatchSnapshot();
             return [201, animals_multi_put_response_json_1.default];
         });
-        return animal.saveAll({ relations: ['kind'] });
+        return animal.save({ relations: ['kind'] });
+    });
+    test('save all with not defined relation error', () => {
+        const animal = new Animal_1.Animal(
+        // @ts-ignore
+        { id: 10, name: 'Doggo', kind: { name: 'Dog' } }, { relations: ['kind'] });
+        mock.onAny().replyOnce(config => {
+            expect(config.url).toBe('/api/animal/');
+            expect(config.method).toBe('put');
+            const putData = JSON.parse(config.data);
+            expect(putData).toMatchSnapshot();
+            return [201, animals_multi_put_response_json_1.default];
+        });
+        return animal.save({ relations: ['kind', 'owner'] }).catch((e) => {
+            const error = 'Relation \'owner\' is not defined in relations';
+            expect(e.message).toEqual(error);
+        });
     });
     test('save all with empty response from backend', () => {
         const animal = new Animal_1.Animal(
@@ -1501,14 +1601,14 @@ describe('requests', () => {
         mock.onAny().replyOnce(config => {
             return [201, {}];
         });
-        return animal.saveAll();
+        return animal.save();
     });
     test('save all fail', () => {
         const animal = new Animal_1.Animal({});
         mock.onAny().replyOnce(() => {
             return [500, {}];
         });
-        const promise = animal.saveAll();
+        const promise = animal.save();
         expect(animal.isLoading).toBe(true);
         return promise.catch(() => {
             expect(animal.isLoading).toBe(false);
@@ -1628,7 +1728,7 @@ describe('requests', () => {
         mock.onAny().replyOnce(() => {
             return [200, {}];
         });
-        return animal.saveAll({ relations: ['kind.breed'] }).then(() => {
+        return animal.save({ relations: ['kind.breed'] }).then(() => {
             expect(animal.hasUserChanges).toBe(false);
         });
     });
@@ -1646,7 +1746,7 @@ describe('requests', () => {
         mock.onAny().replyOnce(() => {
             return [200, {}];
         });
-        return animal.saveAll({ relations: ['kind.breed'] }).then(() => {
+        return animal.save({ relations: ['kind.breed'] }).then(() => {
             expect(animal.hasUserChanges).toBe(true);
             // @ts-ignore
             expect(animal.pastOwners.hasUserChanges).toBe(true);
@@ -1671,7 +1771,7 @@ describe('requests', () => {
         mock.onAny().replyOnce(() => {
             return [200, {}];
         });
-        return animal.saveAll({ relations: ['pastOwners'] }).then(() => {
+        return animal.save({ relations: ['pastOwners'] }).then(() => {
             // @ts-ignore
             expect(animal.pastOwners.hasUserChanges).toBe(false);
             expect(animal.hasUserChanges).toBe(false);
@@ -1692,7 +1792,7 @@ describe('requests', () => {
         mock.onAny().replyOnce(() => {
             return [200, {}];
         });
-        return animal.saveAll().then(() => {
+        return animal.save().then(() => {
             // @ts-ignore
             expect(animal.pastOwners.hasUserChanges).toBe(true);
             expect(animal.hasUserChanges).toBe(true);
@@ -1707,7 +1807,7 @@ describe('changes', () => {
         const output = animal.toBackend({ onlyChanges: true });
         expect(output).toEqual({ id: 1 });
         animal.setInput('name', 'Lion');
-        expect(mobx_1.toJS(animal.__changes)).toEqual(['name']);
+        expect((0, mobx_1.toJS)(animal.__changes)).toEqual(['name']);
         const output2 = animal.toBackend({ onlyChanges: true });
         // `kind: 2` should not appear in here.
         expect(output2).toEqual({
@@ -1719,7 +1819,7 @@ describe('changes', () => {
         const animal = new Animal_1.Animal({ id: 1 });
         animal.setInput('name', 'Lino');
         animal.setInput('name', 'Lion');
-        expect(mobx_1.toJS(animal.__changes)).toEqual(['name']);
+        expect((0, mobx_1.toJS)(animal.__changes)).toEqual(['name']);
         const output = animal.toBackend({ onlyChanges: true });
         expect(output).toEqual({
             id: 1,
@@ -1957,12 +2057,12 @@ test('copy with store relation', () => {
     [animal.copy(), new Animal_1.Animal().copy(animal)].forEach((copiedAnimal) => {
         let serialized = copiedAnimal.toBackendAll({ nestedRelations: { pastOwners: {} } });
         let expected = animal.toBackendAll({ nestedRelations: { pastOwners: {} } });
-        helpers_1.compareObjectsIgnoringNegativeIds(serialized, expected, expect);
+        (0, helpers_1.compareObjectsIgnoringNegativeIds)(serialized, expected, expect);
         const animalAlternativeCopy = new Animal_1.Animal();
         animalAlternativeCopy.copy(animal);
         serialized = copiedAnimal.toBackendAll({ nestedRelations: { pastOwners: {} } });
         expected = animal.toBackendAll({ nestedRelations: { pastOwners: {} } });
-        helpers_1.compareObjectsIgnoringNegativeIds(serialized, expected, expect);
+        (0, helpers_1.compareObjectsIgnoringNegativeIds)(serialized, expected, expect);
     });
 });
 test('de-duplicate relations should not work after copy', () => {
@@ -1985,7 +2085,7 @@ test('de-duplicate relations should not work after copy', () => {
             nestedRelations: { pastOwners: { town: {} } },
         });
         // We should not copy cid's therefore it should not equal expected
-        helpers_1.compareObjectsIgnoringNegativeIds(serialized, expected, expect, false);
+        (0, helpers_1.compareObjectsIgnoringNegativeIds)(serialized, expected, expect, false);
     });
 });
 test('copy with deep nested relation', () => {
@@ -2004,7 +2104,7 @@ test('copy with deep nested relation', () => {
         const serialized = copiedAnimal.toBackendAll({
             nestedRelations: { kind: { location: {}, breed: { location: {} } } },
         });
-        helpers_1.compareObjectsIgnoringNegativeIds(serialized, expected, expect);
+        (0, helpers_1.compareObjectsIgnoringNegativeIds)(serialized, expected, expect);
     });
 });
 test('copy with nested store relation', () => {
@@ -2032,7 +2132,7 @@ test('copy with nested store relation', () => {
         const serialized = copiedAnimal.toBackendAll({
             nestedRelations: { pastOwners: { town: {} } },
         });
-        helpers_1.compareObjectsIgnoringNegativeIds(serialized, expected, expect);
+        (0, helpers_1.compareObjectsIgnoringNegativeIds)(serialized, expected, expect);
     });
 });
 test('toBackendAll with `backendResourceName` property model', () => {
@@ -2060,7 +2160,7 @@ test('toBackendAll with `backendResourceName` property model', () => {
     const serialized = copiedAnimal.toBackendAll({
         nestedRelations: { blaat: {}, owners: {}, pastOwners: {} },
     });
-    helpers_1.compareObjectsIgnoringNegativeIds(serialized, expected, expect);
+    (0, helpers_1.compareObjectsIgnoringNegativeIds)(serialized, expected, expect);
 });
 describe('copy with changes', () => {
     test('toBackend of copy should detect changes', () => {
@@ -2072,7 +2172,7 @@ describe('copy with changes', () => {
         animal.setInput('name', 'Lion');
         // Should work for both copy methods
         [animal.copy(), new Animal_1.Animal().copy(animal)].forEach((copiedAnimal) => {
-            expect(mobx_1.toJS(copiedAnimal.__changes)).toEqual(['name']);
+            expect((0, mobx_1.toJS)(copiedAnimal.__changes)).toEqual(['name']);
             const output2 = copiedAnimal.toBackend({ onlyChanges: true });
             // `kind: 2` should not appear in here.
             expect(output2).toEqual({
@@ -2087,7 +2187,7 @@ describe('copy with changes', () => {
         animal.setInput('name', 'Lion');
         // Should work for both copy methods
         [animal.copy(), new Animal_1.Animal().copy(animal)].forEach((copiedAnimal) => {
-            expect(mobx_1.toJS(copiedAnimal.__changes)).toEqual(['name']);
+            expect((0, mobx_1.toJS)(copiedAnimal.__changes)).toEqual(['name']);
             const output = copiedAnimal.toBackend({ onlyChanges: true });
             expect(output).toEqual({
                 id: 1,
@@ -2370,4 +2470,40 @@ describe('negative id instead of null', () => {
         copiedKind.clear();
         expect(copiedKind.id).toBeLessThan(0);
     });
+});
+/**
+ * Test that for withs, the ordering is taken from the ids on the main model, and not in the withs.
+ *
+ * i.e.
+ *
+ * data {
+ *      "past_owners": [
+ *       55,
+ *       66
+ *     ],
+ * }
+ * with: {past_owners: [
+ *  {id:66},
+ *  {id:55}
+ * ])
+ *
+ * Past owners will be sorted 55, 66, and not the other way around
+ *
+ *
+ */
+test('Parsing inconsistent ordering of withs', () => {
+    const animal = new Animal_1.Animal(null, {
+        relations: ['pastOwners.town'],
+    });
+    // @ts-ignore
+    expect(animal.pastOwners).not.toBeUndefined();
+    // @ts-ignore
+    expect(animal.pastOwners).toBeInstanceOf(Animal_1.PersonStore);
+    animal.fromBackend({
+        data: inconsistent_ordering_withs_json_1.default.data,
+        repos: inconsistent_ordering_withs_json_1.default.with,
+        relMapping: inconsistent_ordering_withs_json_1.default.with_mapping,
+    });
+    // @ts-ignore
+    expect(animal.pastOwners.map('id')).toEqual([55, 66]);
 });

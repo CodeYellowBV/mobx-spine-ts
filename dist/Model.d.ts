@@ -69,6 +69,7 @@ export declare abstract class Model<T extends ModelData> implements WorkAround {
     __activeRelations: string[];
     __activeCurrentRelations: string[];
     __store: Store<T, Model<T>>;
+    abortController: AbortController;
     __pendingRequestCount: number;
     __fetchParams: object;
     __changes: string[];
@@ -115,14 +116,7 @@ export declare abstract class Model<T extends ModelData> implements WorkAround {
     get hasUserChanges(): boolean;
     get isLoading(): boolean;
     saveAllFiles(relations?: NestedRelations): Promise<any[][]>;
-    /**
-     * Validates a model and relations by sending a save request to binder with the validate header set. Binder will return the validation
-     * errors without actually committing the save
-     *
-     * @param options - same as for a normal saveAll request, example {relations:['foo'], onlyChanges: true}
-     */
-    validateAll(options?: SaveAllParams<T>): Promise<object>;
-    saveAll(options?: SaveAllParams<T>): Promise<object>;
+    _saveAll(options?: SaveAllParams<T>): Promise<object>;
     __parseNewIds(idMaps: {
         [x: string]: number[][];
     }): void;
@@ -132,10 +126,9 @@ export declare abstract class Model<T extends ModelData> implements WorkAround {
      *
      * @param options - same as for a normal save request, example: {onlyChanges: true}
      */
-    validate(options?: SaveParams<T>): Promise<{
-        data: ModelData;
-    }>;
-    save(options?: SaveParams<T>): Promise<{
+    validate(options?: SaveParams<T>): Promise<object>;
+    save(options?: SaveParams<T>): Promise<object>;
+    _save(options?: SaveParams<T>): Promise<{
         data: ModelData;
     }>;
     setInput(name: string, value: any): void;
@@ -164,8 +157,9 @@ export declare abstract class Model<T extends ModelData> implements WorkAround {
     fetch(options?: {
         url?: string;
         data?: any;
+        cancelPreviousFetch?: boolean;
         [x: string]: any;
-    }): Promise<void>;
+    }): Promise<any>;
     clear(): void;
     validationErrorFormatter(obj: any): any;
     parseValidationErrors(valErrors: object): void;

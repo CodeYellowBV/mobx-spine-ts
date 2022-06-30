@@ -10,6 +10,28 @@ function csrfSafestring(method) {
     // These HTTP methods do not require CSRF protection.
     return /^(GET|HEAD|OPTIONS|TRACE)$/i.test(method);
 }
+function escapeKey(key) {
+    return key.toString().replace(/([.\\])/g, '\\$1');
+}
+function extractFiles(data, prefix = '') {
+    const keys = (Array.isArray(data)
+        ? (0, lodash_1.range)(data.length)
+        : typeof data === 'object' && data !== null
+            ? Object.keys(data)
+            : []);
+    const files = {};
+    for (const key of keys) {
+        if (data[key] instanceof Blob) {
+            files[prefix + escapeKey(key)] = data[key];
+            data[key] = null;
+        }
+        else if (typeof data[key] === 'object' && data[key] !== null) {
+            Object.assign(files, extractFiles(data[key], prefix + escapeKey(key) + '.'));
+        }
+    }
+    return files;
+}
+;
 class BinderApi {
     constructor() {
         this.axios = axios_1.default.create();
@@ -21,13 +43,16 @@ class BinderApi {
     }
     __initializeCsrfHandling() {
         this.axios.interceptors.response.use(null, err => {
-            const status = lodash_1.get(err, 'response.status');
-            const statusErrCode = lodash_1.get(err, 'response.data.code');
-            const doNotRetry = lodash_1.get(err, 'response.config.doNotRetry');
+            const status = (0, lodash_1.get)(err, 'response.status');
+            const statusErrCode = (0, lodash_1.get)(err, 'response.data.code');
+            const doNotRetry = (0, lodash_1.get)(err, 'response.config.doNotRetry');
             if (status === 403 &&
                 statusErrCode === 'CSRFFailure' &&
                 !doNotRetry) {
-                return this.fetchCsrfToken().then(() => this.axios(Object.assign(Object.assign({}, err.response.config), { doNotRetry: true })));
+                return this.fetchCsrfToken().then(() => this.axios({
+                    ...err.response.config,
+                    doNotRetry: true,
+                }));
             }
             return Promise.reject(err);
         });
@@ -72,10 +97,25 @@ class BinderApi {
             url: url,
             method: method,
             data: this.__formatData(method, data),
-            params: this.__formatQueryParams(method, data, options)
+            params: this.__formatQueryParams(method, data, options),
+            signal: options.abortSignal
         };
         Object.assign(config, options);
         config.headers = headers;
+        if (config.data &&
+            !(config.data instanceof Blob) &&
+            !(config.data instanceof FormData)) {
+            const files = extractFiles(config.data);
+            if (Object.keys(files).length > 0) {
+                const data = new FormData();
+                data.append('data', JSON.stringify(config.data));
+                for (const [path, file] of Object.entries(files)) {
+                    // @ts-ignore
+                    data.append('file:' + path, file, file.name);
+                }
+                config.data = data;
+            }
+        }
         const xhr = this.axios(config);
         // We fork the promise tree as we want to have the error traverse to the listeners
         if (this.onRequestError && options.skipRequestError !== true) {
@@ -87,7 +127,7 @@ class BinderApi {
         return xhr.then(onSuccess);
     }
     parseBackendValidationErrors(response) {
-        const valErrors = lodash_1.get(response, 'data.errors');
+        const valErrors = (0, lodash_1.get)(response, 'data.errors');
         if (response['status'] === 400 && valErrors) {
             return valErrors;
         }

@@ -8,6 +8,32 @@ export declare class Location extends Model<LocationData> {
     id: any;
     name: string;
 }
+declare type FileData = {
+    id?: number;
+    dataFile?: Blob;
+};
+export declare class File extends Model<FileData> {
+    urlRoot: string;
+    api: BinderApi;
+    static backendResourceName: string;
+    id: any;
+    dataFile: any;
+}
+export declare class FileStore extends Store<FileData, File> {
+    Model: typeof File;
+}
+declare type FileCabinetData = {
+    id?: number;
+};
+export declare class FileCabinet extends Model<FileCabinetData> {
+    urlRoot: string;
+    api: BinderApi;
+    static backendResourceName: string;
+    id: any;
+    relations(): {
+        files: typeof FileStore;
+    };
+}
 declare type BreedData = {
     id?: number;
     name?: string;

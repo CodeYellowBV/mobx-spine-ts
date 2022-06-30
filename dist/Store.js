@@ -55,14 +55,14 @@ class Store {
         if (!this.api) {
             throw new Error('[mobx-spine] You are trying to perform an API request without an `api` property defined on the store.');
         }
-        if (!lodash_1.result(this, 'url')) {
+        if (!(0, lodash_1.result)(this, 'url')) {
             throw new Error('[mobx-spine] You are trying to perform an API request without a `url` property defined on the store.');
         }
         return this.api;
     }
     fromBackend(input) {
-        const response = BinderResponse_1.modelResponseAdapter(input);
-        const responseData = lodash_1.isArray(response.data) ? response.data : [response.data];
+        const response = (0, BinderResponse_1.modelResponseAdapter)(input);
+        const responseData = (0, lodash_1.isArray)(response.data) ? response.data : [response.data];
         this.models.replace(responseData.map((modelData) => {
             const model = this._newModel();
             model.fromBackend({
@@ -104,7 +104,7 @@ class Store {
     }
     map(mapping) {
         // @ts-ignore
-        return lodash_1.map(this.models, mapping);
+        return (0, lodash_1.map)(this.models, mapping);
     }
     toBackendAll(options = {}) {
         const relevantModels = options.onlyChanges ? this.models.filter(model => model.isNew || model.hasUserChanges) : this.models;
@@ -113,11 +113,11 @@ class Store {
         const relations = {};
         modelData.forEach(model => {
             data = data.concat(model.data);
-            lodash_1.forIn(model.relations, (relModel, key) => {
+            (0, lodash_1.forIn)(model.relations, (relModel, key) => {
                 relations[key] = relations[key]
                     ? relations[key].concat(relModel)
                     : relModel;
-                relations[key] = lodash_1.uniqBy(relations[key], 'id');
+                relations[key] = (0, lodash_1.uniqBy)(relations[key], 'id');
             });
         });
         return { data, relations };
@@ -131,7 +131,7 @@ class Store {
             comparator: params.comparator,
         });
         // Oh gawd MobX is so awesome.
-        const events = mobx_1.autorun(() => {
+        const events = (0, mobx_1.autorun)(() => {
             const models = this.filter(params.filter);
             store.models.replace(models);
             store.sort();
@@ -211,11 +211,11 @@ class Store {
         const data = this.buildFetchData(options);
         const promise = this.wrapPendingRequestCount(this.__getApi()
             .fetchStore({
-            url: options.url || lodash_1.result(this, 'url'),
+            url: options.url || (0, lodash_1.result)(this, 'url'),
             data,
-            requestOptions: lodash_1.omit(options, 'data'),
+            requestOptions: (0, lodash_1.omit)(options, 'data'),
         })
-            .then(mobx_1.action(res => {
+            .then((0, mobx_1.action)(res => {
             this.__state.totalRecords = res.totalRecords;
             this.fromBackend(res);
             return res.response;
@@ -223,7 +223,7 @@ class Store {
         return promise;
     }
     parse(models) {
-        if (!lodash_1.isArray(models)) {
+        if (!(0, lodash_1.isArray)(models)) {
             throw Error(`Parameter supplied to \`parse()\` is not an array, got: ${JSON.stringify(models)}`);
         }
         // Parse does not mutate __setChanged, as it is used in
@@ -247,7 +247,7 @@ class Store {
      * returned.
      */
     add(rawModels) {
-        const singular = !lodash_1.isArray(rawModels);
+        const singular = !(0, lodash_1.isArray)(rawModels);
         const models = singular ? [rawModels] : rawModels.slice();
         const modelInstances = models.map(this._newModel.bind(this));
         modelInstances.forEach(modelInstance => {
@@ -265,7 +265,7 @@ class Store {
      * Removes the given model(s) from this store and returns the removed model(s).
      */
     remove(models) {
-        const singular = !lodash_1.isArray(models);
+        const singular = !(0, lodash_1.isArray)(models);
         const modelArray = singular ? [models] : models.slice();
         modelArray.forEach(model => this.models.remove(model));
         if (modelArray.length > 0) {
@@ -280,7 +280,7 @@ class Store {
      * @returns The removed model(s)
      */
     removeById(rawIDs) {
-        const singular = !lodash_1.isArray(rawIDs);
+        const singular = !(0, lodash_1.isArray)(rawIDs);
         const ids = singular ?
             [parseInt('' + rawIDs)] :
             rawIDs.map(rawID => parseInt('' + rawID));
@@ -302,7 +302,7 @@ class Store {
      * @returns this store
      */
     sort(options = {}) {
-        if (!lodash_1.isPlainObject(options)) {
+        if (!(0, lodash_1.isPlainObject)(options)) {
             throw new Error('Expecting a plain object for options.');
         }
         if (!this.comparator) {
@@ -327,7 +327,7 @@ class Store {
      * @returns A new *sorted* array containing the models in this store.
      */
     sortBy(iteratees) {
-        return lodash_1.sortBy(this.models, iteratees);
+        return (0, lodash_1.sortBy)(this.models, iteratees);
     }
     /**
      * Get a model from the store by the id. If it doesn't exist, return null
@@ -360,7 +360,7 @@ class Store {
      */
     filter(predicate) {
         // @ts-ignore
-        return lodash_1.filter(this.models, predicate);
+        return (0, lodash_1.filter)(this.models, predicate);
     }
     /**
      * Returns the first model for which the given predicate returns true, or
@@ -368,7 +368,7 @@ class Store {
      */
     find(predicate) {
         // @ts-ignore
-        return lodash_1.find(this.models, predicate);
+        return (0, lodash_1.find)(this.models, predicate);
     }
     /**
      * Calls the given `callbackFunction` for each model in this store.

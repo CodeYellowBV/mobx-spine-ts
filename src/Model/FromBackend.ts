@@ -246,14 +246,14 @@ function parseManyToRelations<T, U extends ModelData>(this: Model<T>, response: 
     } else {
         // Find the collection data that we are references
         const backendModelName = response.with_mapping[backendRelationName];
-        const collectionData: object[] = response.with[backendModelName];
+        const collectionData: ModelData[] = response.with[backendModelName];
 
         // Get the actual array of model data for the store
         if (collectionData) {
-            relationData = collectionData.filter((modelData: ModelData) => {
-                const relationId = modelData.id;
-                return relationDataRaw.includes(relationId);
-            });
+            const idIndexes = Object.fromEntries((relationDataRaw as number[]).map((id: number, index: number) => [id, index]));
+            const models = collectionData.filter(({ id }) => idIndexes[id] !== undefined);
+            models.sort((l, r) => idIndexes[l.id] - idIndexes[r.id]);
+            relationData = models;
         }
     }
 

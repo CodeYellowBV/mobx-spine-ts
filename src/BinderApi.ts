@@ -1,6 +1,6 @@
 import Api, { FetchResponse, FetchStoreOptions, FetchStoreResponse, GetResponse, PutResponse, RequestData, RequestOptions } from './Api';
 import axios, {AxiosInstance, AxiosPromise, AxiosRequestConfig, AxiosResponse} from 'axios';
-import {get} from 'lodash';
+import { get, range } from 'lodash';
 import { Store } from './Store';
 import { Model, ModelData } from './Model';
 import { BootstrapResponse } from './Interfaces';
@@ -9,6 +9,36 @@ function csrfSafestring(method: string) {
     // These HTTP methods do not require CSRF protection.
     return /^(GET|HEAD|OPTIONS|TRACE)$/i.test(method);
 }
+
+function escapeKey(key: string) {
+    return key.toString().replace(/([.\\])/g, '\\$1');
+}
+
+function extractFiles(data: Blob[] | object, prefix = '') {
+
+    const keys: string[] = (
+        Array.isArray(data)
+        ? range(data.length)
+        : typeof data === 'object' && data !== null
+        ? Object.keys(data)
+        : []
+    );
+
+    const files: { [x: string]: Blob } = {};
+    for (const key of keys) {
+        if (data[key] instanceof Blob) {
+            files[prefix + escapeKey(key)] = data[key];
+            data[key] = null;
+        } else if (typeof data[key] === 'object' && data[key] !== null) {
+            Object.assign(files, extractFiles(data[key], prefix + escapeKey(key) + '.'));
+        }
+    }
+    return files;
+}
+
+interface CustomAxiosConfig extends AxiosRequestConfig {
+    signal?: boolean;
+};
 
 export class BinderApi implements Api {
     axios: AxiosInstance = axios.create();
@@ -89,15 +119,36 @@ export class BinderApi implements Api {
             options.headers
         );
 
-        const config: AxiosRequestConfig = {
+        
+
+        const config: CustomAxiosConfig = {
             baseURL: this.baseUrl,
             url: url,
             method: method,
             data: this.__formatData(method, data),
-            params: this.__formatQueryParams(method, data, options)
+            params: this.__formatQueryParams(method, data, options),
+            signal: options.abortSignal
         };
         Object.assign(config, options);
         config.headers = headers;
+
+        if (
+            config.data &&
+            !(config.data instanceof Blob) &&
+            !(config.data instanceof FormData)
+        ) {
+            const files = extractFiles(config.data);
+            if (Object.keys(files).length > 0) {
+                const data = new FormData();
+                data.append('data', JSON.stringify(config.data));
+                for (const [path, file] of Object.entries(files)) {
+                    // @ts-ignore
+                    data.append('file:' + path, file, file.name);
+                }
+                config.data = data;
+            }
+        }
+
         const xhr: AxiosPromise = this.axios(config);
 
         // We fork the promise tree as we want to have the error traverse to the listeners

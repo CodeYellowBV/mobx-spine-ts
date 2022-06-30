@@ -7,7 +7,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 var AnimalCircular_1;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AnimalResourceName = exports.PersonStoreResourceName = exports.KindResourceName = exports.AnimalCircular = exports.AnimalStoreWithoutUrl = exports.AnimalWithoutUrl = exports.AnimalStoreWithoutApi = exports.AnimalWithoutApi = exports.AnimalWithFrontendProp = exports.AnimalWithObject = exports.AnimalWithArray = exports.AnimalStoreWithUrlFunction = exports.AnimalStore = exports.Animal = exports.Kind = exports.PersonStore = exports.Person = exports.Breed = exports.Location = void 0;
+exports.AnimalResourceName = exports.PersonStoreResourceName = exports.KindResourceName = exports.AnimalCircular = exports.AnimalStoreWithoutUrl = exports.AnimalWithoutUrl = exports.AnimalStoreWithoutApi = exports.AnimalWithoutApi = exports.AnimalWithFrontendProp = exports.AnimalWithObject = exports.AnimalWithArray = exports.AnimalStoreWithUrlFunction = exports.AnimalStore = exports.Animal = exports.Kind = exports.PersonStore = exports.Person = exports.Breed = exports.FileCabinet = exports.FileStore = exports.File = exports.Location = void 0;
 const mobx_1 = require("mobx");
 const __1 = require("../..");
 const Model_1 = require("../../Model");
@@ -29,6 +29,54 @@ Location = __decorate([
     Model_1.tsPatch
 ], Location);
 exports.Location = Location;
+let File = class File extends __1.Model {
+    constructor() {
+        super(...arguments);
+        this.urlRoot = '/api/file/';
+        this.api = new __1.BinderApi();
+        this.id = null;
+        this.dataFile = null;
+    }
+};
+File.backendResourceName = 'file';
+__decorate([
+    mobx_1.observable
+], File.prototype, "id", void 0);
+__decorate([
+    mobx_1.observable
+], File.prototype, "dataFile", void 0);
+File = __decorate([
+    Model_1.tsPatch
+], File);
+exports.File = File;
+class FileStore extends __1.Store {
+    constructor() {
+        super(...arguments);
+        this.Model = File;
+    }
+}
+exports.FileStore = FileStore;
+let FileCabinet = class FileCabinet extends __1.Model {
+    constructor() {
+        super(...arguments);
+        this.urlRoot = '/api/file_cabinet/';
+        this.api = new __1.BinderApi();
+        this.id = null;
+    }
+    relations() {
+        return {
+            files: FileStore,
+        };
+    }
+};
+FileCabinet.backendResourceName = 'file_cabinet';
+__decorate([
+    mobx_1.observable
+], FileCabinet.prototype, "id", void 0);
+FileCabinet = __decorate([
+    Model_1.tsPatch
+], FileCabinet);
+exports.FileCabinet = FileCabinet;
 let Breed = class Breed extends __1.Model {
     constructor() {
         super(...arguments);

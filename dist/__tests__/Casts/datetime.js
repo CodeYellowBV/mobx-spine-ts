@@ -74,7 +74,7 @@ test('should be serialized in toBackend()', () => {
 });
 test('moment instance with locale should be recognized', () => {
     const animal = new Animal();
-    animal.bornAt = moment_with_locales_1.default('2017-03-22T22:08:23+00:00');
+    animal.bornAt = (0, moment_with_locales_1.default)('2017-03-22T22:08:23+00:00');
     expect(animal.toJS().bornAt).toEqual(expect.stringContaining('2017-03-22'));
 });
 describe('luxon compatibility', () => {

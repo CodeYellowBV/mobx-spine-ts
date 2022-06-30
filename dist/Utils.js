@@ -34,6 +34,10 @@ exports.relationsToNestedKeys = relationsToNestedKeys;
 // Use output of relationsToNestedKeys to iterate each relation, fn is called on each model and store.
 function forNestedRelations(model, nestedRelations, fn) {
     Object.keys(nestedRelations).forEach(key => {
+        if (!model[key]) {
+            // Check if passed relation is defined in relations
+            throw new Error(`Relation '${key}' is not defined in relations`);
+        }
         if (Object.keys(nestedRelations[key]).length > 0) {
             if (model[key].forEach) {
                 model[key].forEach(m => {

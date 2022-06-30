@@ -87,6 +87,7 @@ export interface RequestOptions {
     skipFormatter?: boolean;
     params?: RequestData;
     headers?: object;
+    abortSignal?: boolean;
 }
 export interface FetchStoreOptions {
     url?: string;
